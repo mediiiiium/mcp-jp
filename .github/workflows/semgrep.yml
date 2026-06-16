@@ -1,0 +1,37 @@
+# vauban managed — このファイルは setup.sh が生成します。再実行で上書きされます。
+name: Semgrep
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+  security-events: write   # SARIF を Security タブへ上げるのに必要
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'semgrep~=1.166'   # v1系のパッチ/ルール追従を許容しつつ再現性を確保
+      # 検出があれば --error で job を落とし push/PR をブロックする
+      - name: Semgrep scan
+        run: semgrep scan --config=auto --sarif --output=semgrep.sarif --error
+      # ブロックされても結果は必ず残す。
+      # Security タブへの上げは public/GHAS のみ可。private で未契約だと失敗するが
+      # continue-on-error で job は落とさない（ブロックは scan 側が担う）。
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+      # private repo でも確認できるよう SARIF を成果物としても残す
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif

@@ -1,0 +1,20 @@
+# vauban managed — このファイルは setup.sh が生成します。再実行で上書きされます。
+repos:
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '(^|/)(node_modules|\.venv|venv|vendor|dist|build|__pycache__)/'
+
+  - repo: local
+    hooks:
+      - id: gemini-review
+        name: Gemini Code Review
+        entry: python scripts/gemini_review.py
+        language: python
+        additional_dependencies: [google-genai]
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+        verbose: true
