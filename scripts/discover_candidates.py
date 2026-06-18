@@ -96,6 +96,24 @@ RISK_THRESHOLD = 40
 
 STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md")
+ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
+
+
+def load_dotenv():
+    """プロジェクト直下の .env を os.environ に流し込む（既存の環境変数は上書きしない）。
+
+    依存を増やさないための最小実装。GITHUB_TOKEN をここで供給するので、
+    一度 .env に書けば毎回 --token を渡さなくてよくなる。.env は .gitignore 済み。
+    """
+    if not os.path.exists(ENV_PATH):
+        return
+    with open(ENV_PATH, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
 
 @dataclass
@@ -500,6 +518,7 @@ def watch(token: str):
 # ── メイン ────────────────────────────────────────────────────
 
 def main():
+    load_dotenv()  # .env の GITHUB_TOKEN を環境変数へ（argparse の default 評価より前）
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""),
