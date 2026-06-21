@@ -13,6 +13,7 @@
 | `kingtime/` | KING OF TIME（勤怠管理） | 開発中（5ツール実装済み） |
 | `smarthr/` | SmartHR（人事・労務管理） | 開発中（5ツール実装済み） |
 | `kaonavi/` | カオナビ（タレントマネジメント） | 開発中（5ツール実装済み） |
+| `mazrica/` | Mazrica Sales（SFA・営業支援） | 開発中（5ツール実装済み） |
 
 ## 次の候補
 
