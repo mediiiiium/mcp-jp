@@ -38,6 +38,8 @@
 | `shopify/` | Shopify（ECプラットフォーム） | 開発中（5ツール実装済み） |
 | `mailchimp/` | Mailchimp（メールマーケティング） | 開発中（5ツール実装済み） |
 | `confluence/` | Confluence（ナレッジ管理・ドキュメント共有） | 開発中（5ツール実装済み） |
+| `intercom/` | Intercom（カスタマーメッセージング・CRM） | 開発中（5ツール実装済み） |
+| `square/` | Square（決済・店舗管理） | 開発中（5ツール実装済み） |
 
 ## 次の候補
 
