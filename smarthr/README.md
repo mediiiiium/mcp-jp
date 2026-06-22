@@ -26,7 +26,7 @@ pip install -e .
     "smarthr": {
       "command": "smarthr-mcp",
       "env": {
-        "SMARTHR_ACCESS_TOKEN": "your_token_here",
+        "SMARTHR_ACCESS_TOKEN": "your_token_here",  # pragma: allowlist secret
         "SMARTHR_TENANT_ID": "your_tenant_id"
       }
     }
