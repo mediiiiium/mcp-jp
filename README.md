@@ -56,6 +56,8 @@
 | `heroku/` | Heroku（PaaS・アプリデプロイ管理） | 開発中（5ツール実装済み） |
 | `cloudflare/` | Cloudflare（CDN・DNS・セキュリティ管理） | 開発中（5ツール実装済み） |
 | `vercel/` | Vercel（フロントエンドデプロイ・ホスティング） | 開発中（5ツール実装済み） |
+| `trello/` | Trello（カンバン型プロジェクト管理） | 開発中（5ツール実装済み） |
+| `circleci/` | CircleCI（CI/CD パイプライン管理） | 開発中（5ツール実装済み） |
 
 ## 次の候補
 
