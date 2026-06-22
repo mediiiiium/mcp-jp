@@ -86,6 +86,7 @@
 | `salesforce/` | Salesforce（CRM・営業管理） | ~~開発中~~ → **公式MCPあり**（Salesforce Hosted MCP Server、2026年4月 GA）|
 | `miitel/` | MiiTel（IP電話・音声解析）| ~~開発中~~ → **公式MCPあり**（RevComm、2025年12月 Beta）|
 | `salesgo/` | SALES GO / GoCoo!（SFA） | ~~開発中~~ → **公式MCPあり**（日本初MCPサーバー対応SFA、2025年10月 GA）|
+| `mackerel/` | Mackerel（サーバー監視・可観測性） | ~~開発中~~ → **公式MCPあり**（mackerelio-labs/mcp-server）|
 
 ## 次の候補
 
