@@ -23,6 +23,8 @@
 | `herp/` | HERP Hire（採用管理システム） | 開発中（5ツール実装済み） |
 | `talentio/` | Talentio（採用管理システム） | 開発中（5ツール実装済み） |
 | `lineworks/` | LINE WORKS（ビジネスチャット・グループウェア） | 開発中（5ツール実装済み）JWT認証 |
+| `board/` | board（業務・経営管理・請求書管理） | 開発中（5ツール実装済み） |
+| `jooto/` | Jooto（タスク・プロジェクト管理） | 開発中（5ツール実装済み） |
 
 ### グローバルSaaS（公式MCPなし → 独自実装）
 
@@ -74,6 +76,7 @@
 | `cloudflare/` | Cloudflare（CDN・DNS・セキュリティ管理） | ~~開発中~~ → **公式MCPあり**（cloudflare/mcp-server-cloudflare）|
 | `vercel/` | Vercel（フロントエンドデプロイ・ホスティング） | ~~開発中~~ → **公式MCPあり**（mcp.vercel.com、2025年8月〜）|
 | `circleci/` | CircleCI（CI/CD パイプライン管理） | ~~開発中~~ → **公式MCPあり**（CircleCI-Public/mcp-server-circleci）|
+| `colormeshop/` | カラーミーショップ（ECカート構築） | ~~開発中~~ → **公式MCPあり**（リモートMCPサーバー、2026年3月 GA）|
 
 ## 次の候補
 
