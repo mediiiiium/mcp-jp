@@ -4,6 +4,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
 
+from ._http import format_response, error_response
+
 BASE_URL = "https://lineml.jp/v2/api"
 
 app = Server("lstep-mcp")
@@ -260,6 +262,13 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
+    try:
+        return _dispatch(name, arguments)
+    except Exception as exc:  # noqa: BLE001 — MCP では例外を意味のある文字列で返す
+        return error_response(exc)
+
+
+def _dispatch(name: str, arguments: dict) -> list[types.TextContent]:
     with get_client() as client:
         # ── 友だち ──
         if name == "list_friends":
@@ -361,7 +370,7 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
             raise ValueError(f"未知のツール: {name}")
 
         r.raise_for_status()
-        return [types.TextContent(type="text", text=r.text)]
+        return format_response(r.json())
 
 
 def main():
