@@ -82,6 +82,10 @@
 | `vercel/` | Vercel（フロントエンドデプロイ・ホスティング） | ~~開発中~~ → **公式MCPあり**（mcp.vercel.com、2025年8月〜）|
 | `circleci/` | CircleCI（CI/CD パイプライン管理） | ~~開発中~~ → **公式MCPあり**（CircleCI-Public/mcp-server-circleci）|
 | `colormeshop/` | カラーミーショップ（ECカート構築） | ~~開発中~~ → **公式MCPあり**（リモートMCPサーバー、2026年3月 GA）|
+| `zaico/` | zaico（クラウド在庫管理） | ~~開発中~~ → **公式MCPあり**（zaico MCP、2026年6月 GA）|
+| `salesforce/` | Salesforce（CRM・営業管理） | ~~開発中~~ → **公式MCPあり**（Salesforce Hosted MCP Server、2026年4月 GA）|
+| `miitel/` | MiiTel（IP電話・音声解析）| ~~開発中~~ → **公式MCPあり**（RevComm、2025年12月 Beta）|
+| `salesgo/` | SALES GO / GoCoo!（SFA） | ~~開発中~~ → **公式MCPあり**（日本初MCPサーバー対応SFA、2025年10月 GA）|
 
 ## 次の候補
 
