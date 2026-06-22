@@ -1,0 +1,19 @@
+[project]
+name = "misoca-mcp"
+version = "0.1.0"
+description = "MCP server for Misoca（見積・納品・請求書サービス）"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+misoca-mcp = "misoca_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/misoca_mcp"]
