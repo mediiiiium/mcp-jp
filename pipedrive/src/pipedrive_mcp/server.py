@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("pipedrive-mcp")
 BASE_URL = "https://api.pipedrive.com/v1"
@@ -93,61 +94,63 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_persons":
+                params = {
+                    "limit": arguments.get("limit", 100),
+                    "start": arguments.get("start", 0),
+                }
+                r = client.get("/persons", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_persons":
-        params = {
-            "limit": arguments.get("limit", 100),
-            "start": arguments.get("start", 0),
-        }
-        r = client.get("/persons", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "search_persons":
+                params = {
+                    "term": arguments["term"],
+                    "limit": arguments.get("limit", 10),
+                    "item_type": "person",
+                }
+                if arguments.get("fields"):
+                    params["fields"] = arguments["fields"]
+                r = client.get("/persons/search", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "search_persons":
-        params = {
-            "term": arguments["term"],
-            "limit": arguments.get("limit", 10),
-            "item_type": "person",
-        }
-        if arguments.get("fields"):
-            params["fields"] = arguments["fields"]
-        r = client.get("/persons/search", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_deals":
+                params = {
+                    "status": arguments.get("status", "open"),
+                    "limit": arguments.get("limit", 100),
+                    "start": arguments.get("start", 0),
+                }
+                r = client.get("/deals", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_deals":
-        params = {
-            "status": arguments.get("status", "open"),
-            "limit": arguments.get("limit", 100),
-            "start": arguments.get("start", 0),
-        }
-        r = client.get("/deals", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_deal":
+                payload = {"title": arguments["title"]}
+                for field in ("value", "currency", "person_id", "org_id", "stage_id"):
+                    if arguments.get(field) is not None:
+                        payload[field] = arguments[field]
+                r = client.post("/deals", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_deal":
-        payload = {"title": arguments["title"]}
-        for field in ("value", "currency", "person_id", "org_id", "stage_id"):
-            if arguments.get(field) is not None:
-                payload[field] = arguments[field]
-        r = client.post("/deals", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_activities":
+                params = {
+                    "limit": arguments.get("limit", 100),
+                    "start": arguments.get("start", 0),
+                }
+                if arguments.get("done") is not None:
+                    params["done"] = arguments["done"]
+                r = client.get("/activities", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_activities":
-        params = {
-            "limit": arguments.get("limit", 100),
-            "start": arguments.get("start", 0),
-        }
-        if arguments.get("done") is not None:
-            params["done"] = arguments["done"]
-        r = client.get("/activities", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("relation-mcp")
 
@@ -90,54 +91,56 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_message_boxes":
+                r = client.get("/message_boxes")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_message_boxes":
-        r = client.get("/message_boxes")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "search_tickets":
+                mb_id = arguments["message_box_id"]
+                payload: dict = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("status"):
+                    payload["status"] = arguments["status"]
+                if arguments.get("keyword"):
+                    payload["keyword"] = arguments["keyword"]
+                if arguments.get("assignee_id"):
+                    payload["assignee_id"] = arguments["assignee_id"]
+                r = client.post(f"/{mb_id}/tickets/search", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "search_tickets":
-        mb_id = arguments["message_box_id"]
-        payload: dict = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("status"):
-            payload["status"] = arguments["status"]
-        if arguments.get("keyword"):
-            payload["keyword"] = arguments["keyword"]
-        if arguments.get("assignee_id"):
-            payload["assignee_id"] = arguments["assignee_id"]
-        r = client.post(f"/{mb_id}/tickets/search", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_ticket":
+                mb_id = arguments["message_box_id"]
+                ticket_id = arguments["ticket_id"]
+                r = client.get(f"/{mb_id}/tickets/{ticket_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_ticket":
-        mb_id = arguments["message_box_id"]
-        ticket_id = arguments["ticket_id"]
-        r = client.get(f"/{mb_id}/tickets/{ticket_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_reply_memo":
+                mb_id = arguments["message_box_id"]
+                payload = {
+                    "ticket_id": arguments["ticket_id"],
+                    "body": arguments["body"],
+                    "record_type": "memo",
+                }
+                r = client.post(f"/{mb_id}/records", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_reply_memo":
-        mb_id = arguments["message_box_id"]
-        payload = {
-            "ticket_id": arguments["ticket_id"],
-            "body": arguments["body"],
-            "record_type": "memo",
-        }
-        r = client.post(f"/{mb_id}/records", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_users":
+                r = client.get("/users")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_users":
-        r = client.get("/users")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

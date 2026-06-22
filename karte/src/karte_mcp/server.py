@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("karte-mcp")
 
@@ -117,64 +118,66 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "track_event":
+                keys: dict = {}
+                if arguments.get("user_id"):
+                    keys["user_id"] = arguments["user_id"]
+                elif arguments.get("visitor_id"):
+                    keys["visitor_id"] = arguments["visitor_id"]
+                else:
+                    raise ValueError("user_id または visitor_id のいずれかが必要です")
+                event: dict = {"event_name": arguments["event_name"]}
+                if arguments.get("event_values"):
+                    event["values"] = arguments["event_values"]
+                r = client.post("/v2/track/event/write", json={"keys": keys, "event": event})
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "track_event":
-        keys: dict = {}
-        if arguments.get("user_id"):
-            keys["user_id"] = arguments["user_id"]
-        elif arguments.get("visitor_id"):
-            keys["visitor_id"] = arguments["visitor_id"]
-        else:
-            raise ValueError("user_id または visitor_id のいずれかが必要です")
-        event: dict = {"event_name": arguments["event_name"]}
-        if arguments.get("event_values"):
-            event["values"] = arguments["event_values"]
-        r = client.post("/v2/track/event/write", json={"keys": keys, "event": event})
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_user_events":
+                payload = {
+                    "user_id": arguments["user_id"],
+                    "event_names": arguments.get("event_names", ["view"]),
+                }
+                r = client.post("/v2beta/track/event/get", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_user_events":
-        payload = {
-            "user_id": arguments["user_id"],
-            "event_names": arguments.get("event_names", ["view"]),
-        }
-        r = client.post("/v2beta/track/event/get", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "track_event_exec_action":
+                keys = {}
+                if arguments.get("user_id"):
+                    keys["user_id"] = arguments["user_id"]
+                elif arguments.get("visitor_id"):
+                    keys["visitor_id"] = arguments["visitor_id"]
+                else:
+                    raise ValueError("user_id または visitor_id のいずれかが必要です")
+                event = {"event_name": arguments["event_name"]}
+                if arguments.get("event_values"):
+                    event["values"] = arguments["event_values"]
+                r = client.post("/v2beta/track/event/writeAndExecAction", json={"keys": keys, "event": event})
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "track_event_exec_action":
-        keys = {}
-        if arguments.get("user_id"):
-            keys["user_id"] = arguments["user_id"]
-        elif arguments.get("visitor_id"):
-            keys["visitor_id"] = arguments["visitor_id"]
-        else:
-            raise ValueError("user_id または visitor_id のいずれかが必要です")
-        event = {"event_name": arguments["event_name"]}
-        if arguments.get("event_values"):
-            event["values"] = arguments["event_values"]
-        r = client.post("/v2beta/track/event/writeAndExecAction", json={"keys": keys, "event": event})
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_campaign":
+                r = client.post("/v2beta/action/campaign/findById", json={"id": arguments["campaign_id"]})
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_campaign":
-        r = client.post("/v2beta/action/campaign/findById", json={"id": arguments["campaign_id"]})
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_campaign_stats":
+                payload = {
+                    "start_date": arguments["start_date"],
+                    "end_date": arguments["end_date"],
+                    "range": arguments.get("range", "latest_thirty_days"),
+                }
+                r = client.post("/v2beta/action/campaign/getSettingsAndStats", json=payload)
+                r.raise_for_status()
+                return [types.TextContent(type="text", text=r.text)]
 
-    elif name == "get_campaign_stats":
-        payload = {
-            "start_date": arguments["start_date"],
-            "end_date": arguments["end_date"],
-            "range": arguments.get("range", "latest_thirty_days"),
-        }
-        r = client.post("/v2beta/action/campaign/getSettingsAndStats", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=r.text)]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

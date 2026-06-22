@@ -5,6 +5,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
 
+from ._http import format_response, error_response
+
 app = Server("sendgrid-mcp")
 
 BASE_URL = "https://api.sendgrid.com/v3"
@@ -164,76 +166,78 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "send_email":
+                to_addr: dict = {"email": arguments["to_email"]}
+                if arguments.get("to_name"):
+                    to_addr["name"] = arguments["to_name"]
+                from_addr: dict = {"email": arguments["from_email"]}
+                if arguments.get("from_name"):
+                    from_addr["name"] = arguments["from_name"]
+                content = [{"type": "text/plain", "value": arguments["text_content"]}]
+                if arguments.get("html_content"):
+                    content.append({"type": "text/html", "value": arguments["html_content"]})
+                body = {
+                    "personalizations": [{"to": [to_addr]}],
+                    "from": from_addr,
+                    "subject": arguments["subject"],
+                    "content": content,
+                }
+                r = client.post("/mail/send", content=json.dumps(body))
+                r.raise_for_status()
+                return format_response({"status": "sent", "status_code": r.status_code})
 
-    if name == "send_email":
-        to_addr: dict = {"email": arguments["to_email"]}
-        if arguments.get("to_name"):
-            to_addr["name"] = arguments["to_name"]
-        from_addr: dict = {"email": arguments["from_email"]}
-        if arguments.get("from_name"):
-            from_addr["name"] = arguments["from_name"]
-        content = [{"type": "text/plain", "value": arguments["text_content"]}]
-        if arguments.get("html_content"):
-            content.append({"type": "text/html", "value": arguments["html_content"]})
-        body = {
-            "personalizations": [{"to": [to_addr]}],
-            "from": from_addr,
-            "subject": arguments["subject"],
-            "content": content,
-        }
-        r = client.post("/mail/send", content=json.dumps(body))
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps({"status": "sent", "status_code": r.status_code}, ensure_ascii=False, indent=2))]
+            elif name == "get_stats":
+                params: dict = {
+                    "start_date": arguments["start_date"],
+                    "aggregated_by": arguments.get("aggregated_by", "day"),
+                }
+                if arguments.get("end_date"):
+                    params["end_date"] = arguments["end_date"]
+                r = client.get("/stats", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_stats":
-        params: dict = {
-            "start_date": arguments["start_date"],
-            "aggregated_by": arguments.get("aggregated_by", "day"),
-        }
-        if arguments.get("end_date"):
-            params["end_date"] = arguments["end_date"]
-        r = client.get("/stats", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_bounces":
+                params = {
+                    "limit": arguments.get("limit", 25),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("start_time"):
+                    params["start_time"] = arguments["start_time"]
+                if arguments.get("end_time"):
+                    params["end_time"] = arguments["end_time"]
+                r = client.get("/suppression/bounces", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_bounces":
-        params = {
-            "limit": arguments.get("limit", 25),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("start_time"):
-            params["start_time"] = arguments["start_time"]
-        if arguments.get("end_time"):
-            params["end_time"] = arguments["end_time"]
-        r = client.get("/suppression/bounces", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_unsubscribes":
+                params = {
+                    "limit": arguments.get("limit", 25),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("start_time"):
+                    params["start_time"] = arguments["start_time"]
+                if arguments.get("end_time"):
+                    params["end_time"] = arguments["end_time"]
+                r = client.get("/suppression/unsubscribes", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_unsubscribes":
-        params = {
-            "limit": arguments.get("limit", 25),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("start_time"):
-            params["start_time"] = arguments["start_time"]
-        if arguments.get("end_time"):
-            params["end_time"] = arguments["end_time"]
-        r = client.get("/suppression/unsubscribes", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_templates":
+                params = {
+                    "generations": arguments.get("generations", "dynamic"),
+                    "page_size": arguments.get("page_size", 10),
+                }
+                r = client.get("/templates", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_templates":
-        params = {
-            "generations": arguments.get("generations", "dynamic"),
-            "page_size": arguments.get("page_size", 10),
-        }
-        r = client.get("/templates", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

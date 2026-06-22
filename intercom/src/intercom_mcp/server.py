@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("intercom-mcp")
 BASE_URL = "https://api.intercom.io"
@@ -91,57 +92,59 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_contacts":
+                params = {"per_page": arguments.get("per_page", 50)}
+                r = client.get("/contacts", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_contacts":
-        params = {"per_page": arguments.get("per_page", 50)}
-        r = client.get("/contacts", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "search_contacts":
+                payload = {
+                    "query": {
+                        "operator": "OR",
+                        "value": [
+                            {"field": "email", "operator": "~", "value": arguments["query"]},
+                            {"field": "name", "operator": "~", "value": arguments["query"]},
+                        ],
+                    }
+                }
+                r = client.post("/contacts/search", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "search_contacts":
-        payload = {
-            "query": {
-                "operator": "OR",
-                "value": [
-                    {"field": "email", "operator": "~", "value": arguments["query"]},
-                    {"field": "name", "operator": "~", "value": arguments["query"]},
-                ],
-            }
-        }
-        r = client.post("/contacts/search", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_contact":
+                contact_id = arguments["contact_id"]
+                r = client.get(f"/contacts/{contact_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_contact":
-        contact_id = arguments["contact_id"]
-        r = client.get(f"/contacts/{contact_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_contact":
+                payload = {
+                    "email": arguments["email"],
+                    "role": arguments.get("role", "user"),
+                }
+                if arguments.get("name"):
+                    payload["name"] = arguments["name"]
+                if arguments.get("phone"):
+                    payload["phone"] = arguments["phone"]
+                r = client.post("/contacts", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_contact":
-        payload = {
-            "email": arguments["email"],
-            "role": arguments.get("role", "user"),
-        }
-        if arguments.get("name"):
-            payload["name"] = arguments["name"]
-        if arguments.get("phone"):
-            payload["phone"] = arguments["phone"]
-        r = client.post("/contacts", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_conversations":
+                params = {"per_page": arguments.get("per_page", 20)}
+                if arguments.get("open", True):
+                    params["open"] = True
+                r = client.get("/conversations", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_conversations":
-        params = {"per_page": arguments.get("per_page", 20)}
-        if arguments.get("open", True):
-            params["open"] = True
-        r = client.get("/conversations", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

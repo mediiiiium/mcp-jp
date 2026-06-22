@@ -6,6 +6,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
 
+from ._http import format_response, error_response
+
 app = Server("garoon-mcp")
 
 
@@ -180,72 +182,74 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_events":
+                params: dict = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("range_start"):
+                    params["rangeStart"] = arguments["range_start"]
+                if arguments.get("range_end"):
+                    params["rangeEnd"] = arguments["range_end"]
+                if arguments.get("target"):
+                    params["target"] = arguments["target"]
+                if arguments.get("target_type"):
+                    params["targetType"] = arguments["target_type"]
+                r = client.get("/schedule/events", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_events":
-        params: dict = {
-            "limit": arguments.get("limit", 20),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("range_start"):
-            params["rangeStart"] = arguments["range_start"]
-        if arguments.get("range_end"):
-            params["rangeEnd"] = arguments["range_end"]
-        if arguments.get("target"):
-            params["target"] = arguments["target"]
-        if arguments.get("target_type"):
-            params["targetType"] = arguments["target_type"]
-        r = client.get("/schedule/events", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_event":
+                body: dict = {
+                    "eventType": arguments.get("event_type", "REGULAR"),
+                    "subject": arguments["subject"],
+                    "start": {"dateTime": arguments["start_datetime"]},
+                    "end": {"dateTime": arguments["end_datetime"]},
+                    "visibilityType": arguments.get("visibility_type", "PUBLIC"),
+                }
+                if arguments.get("notes"):
+                    body["notes"] = arguments["notes"]
+                if arguments.get("attendee_ids"):
+                    body["attendees"] = [{"type": "USER", "id": uid} for uid in arguments["attendee_ids"]]
+                r = client.post("/schedule/events", content=json.dumps(body))
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_event":
-        body: dict = {
-            "eventType": arguments.get("event_type", "REGULAR"),
-            "subject": arguments["subject"],
-            "start": {"dateTime": arguments["start_datetime"]},
-            "end": {"dateTime": arguments["end_datetime"]},
-            "visibilityType": arguments.get("visibility_type", "PUBLIC"),
-        }
-        if arguments.get("notes"):
-            body["notes"] = arguments["notes"]
-        if arguments.get("attendee_ids"):
-            body["attendees"] = [{"type": "USER", "id": uid} for uid in arguments["attendee_ids"]]
-        r = client.post("/schedule/events", content=json.dumps(body))
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_users":
+                params = {
+                    "limit": arguments.get("limit", 50),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                r = client.get("/base/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_users":
-        params = {
-            "limit": arguments.get("limit", 50),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("name"):
-            params["name"] = arguments["name"]
-        r = client.get("/base/users", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_workflow_requests":
+                params = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                    "orderBy": arguments.get("order_by", "createdAt desc"),
+                }
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                r = client.get("/workflow/admin/requests", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_workflow_requests":
-        params = {
-            "limit": arguments.get("limit", 20),
-            "offset": arguments.get("offset", 0),
-            "orderBy": arguments.get("order_by", "createdAt desc"),
-        }
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        r = client.get("/workflow/admin/requests", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_presence":
+                user_id = arguments["user_id"]
+                r = client.get(f"/presence/users/{user_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_presence":
-        user_id = arguments["user_id"]
-        r = client.get(f"/presence/users/{user_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

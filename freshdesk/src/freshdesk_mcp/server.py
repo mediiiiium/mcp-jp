@@ -1,10 +1,11 @@
 import os
-import json
 import base64
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("freshdesk-mcp")
 
@@ -95,60 +96,62 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_tickets":
+                params = {
+                    "per_page": arguments.get("per_page", 30),
+                    "page": arguments.get("page", 1),
+                }
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("priority"):
+                    params["priority"] = arguments["priority"]
+                r = client.get("/tickets", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_tickets":
-        params = {
-            "per_page": arguments.get("per_page", 30),
-            "page": arguments.get("page", 1),
-        }
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        if arguments.get("priority"):
-            params["priority"] = arguments["priority"]
-        r = client.get("/tickets", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_ticket":
+                ticket_id = arguments["ticket_id"]
+                r = client.get(f"/tickets/{ticket_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_ticket":
-        ticket_id = arguments["ticket_id"]
-        r = client.get(f"/tickets/{ticket_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_ticket":
+                payload = {
+                    "subject": arguments["subject"],
+                    "description": arguments["description"],
+                    "email": arguments["email"],
+                    "priority": arguments.get("priority", 2),
+                    "status": arguments.get("status", 2),
+                }
+                if arguments.get("tags"):
+                    payload["tags"] = arguments["tags"]
+                r = client.post("/tickets", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_ticket":
-        payload = {
-            "subject": arguments["subject"],
-            "description": arguments["description"],
-            "email": arguments["email"],
-            "priority": arguments.get("priority", 2),
-            "status": arguments.get("status", 2),
-        }
-        if arguments.get("tags"):
-            payload["tags"] = arguments["tags"]
-        r = client.post("/tickets", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_contacts":
+                params = {
+                    "per_page": arguments.get("per_page", 30),
+                    "page": arguments.get("page", 1),
+                }
+                if arguments.get("email"):
+                    params["email"] = arguments["email"]
+                r = client.get("/contacts", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_contacts":
-        params = {
-            "per_page": arguments.get("per_page", 30),
-            "page": arguments.get("page", 1),
-        }
-        if arguments.get("email"):
-            params["email"] = arguments["email"]
-        r = client.get("/contacts", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_contact":
+                contact_id = arguments["contact_id"]
+                r = client.get(f"/contacts/{contact_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_contact":
-        contact_id = arguments["contact_id"]
-        r = client.get(f"/contacts/{contact_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

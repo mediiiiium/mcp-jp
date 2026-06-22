@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("harvest-mcp")
 BASE_URL = "https://api.harvestapp.com/v2"
@@ -98,62 +99,64 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_projects":
+                params = {"per_page": arguments.get("per_page", 100)}
+                if arguments.get("is_active") is not None:
+                    params["is_active"] = arguments["is_active"]
+                r = client.get("/projects", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_projects":
-        params = {"per_page": arguments.get("per_page", 100)}
-        if arguments.get("is_active") is not None:
-            params["is_active"] = arguments["is_active"]
-        r = client.get("/projects", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_time_entries":
+                params = {"per_page": arguments.get("per_page", 100)}
+                if arguments.get("project_id"):
+                    params["project_id"] = arguments["project_id"]
+                if arguments.get("from_date"):
+                    params["from"] = arguments["from_date"]
+                if arguments.get("to_date"):
+                    params["to"] = arguments["to_date"]
+                r = client.get("/time_entries", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_time_entries":
-        params = {"per_page": arguments.get("per_page", 100)}
-        if arguments.get("project_id"):
-            params["project_id"] = arguments["project_id"]
-        if arguments.get("from_date"):
-            params["from"] = arguments["from_date"]
-        if arguments.get("to_date"):
-            params["to"] = arguments["to_date"]
-        r = client.get("/time_entries", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_time_entry":
+                payload = {
+                    "project_id": arguments["project_id"],
+                    "task_id": arguments["task_id"],
+                    "spent_date": arguments["spent_date"],
+                }
+                if arguments.get("hours"):
+                    payload["hours"] = arguments["hours"]
+                if arguments.get("notes"):
+                    payload["notes"] = arguments["notes"]
+                r = client.post("/time_entries", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_time_entry":
-        payload = {
-            "project_id": arguments["project_id"],
-            "task_id": arguments["task_id"],
-            "spent_date": arguments["spent_date"],
-        }
-        if arguments.get("hours"):
-            payload["hours"] = arguments["hours"]
-        if arguments.get("notes"):
-            payload["notes"] = arguments["notes"]
-        r = client.post("/time_entries", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_clients":
+                params = {"per_page": arguments.get("per_page", 100)}
+                if arguments.get("is_active") is not None:
+                    params["is_active"] = arguments["is_active"]
+                r = client.get("/clients", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_clients":
-        params = {"per_page": arguments.get("per_page", 100)}
-        if arguments.get("is_active") is not None:
-            params["is_active"] = arguments["is_active"]
-        r = client.get("/clients", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_invoices":
+                params = {"per_page": arguments.get("per_page", 100)}
+                if arguments.get("client_id"):
+                    params["client_id"] = arguments["client_id"]
+                if arguments.get("state"):
+                    params["state"] = arguments["state"]
+                r = client.get("/invoices", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_invoices":
-        params = {"per_page": arguments.get("per_page", 100)}
-        if arguments.get("client_id"):
-            params["client_id"] = arguments["client_id"]
-        if arguments.get("state"):
-            params["state"] = arguments["state"]
-        r = client.get("/invoices", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 BASE_URL = "https://api.kingtime.jp/v1.0"
 
@@ -103,62 +104,64 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = get_client()
+    try:
+        with get_client() as client:
+            if name == "get_employees":
+                params = {
+                    "limit": arguments.get("limit", 100),
+                    "offset": arguments.get("offset", 0),
+                }
+                r = client.get("/employees", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "get_employees":
-        params = {
-            "limit": arguments.get("limit", 100),
-            "offset": arguments.get("offset", 0),
-        }
-        r = client.get("/employees", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_daily_workings":
+                params = {
+                    "start": arguments["start_date"],
+                    "end": arguments["end_date"],
+                }
+                if arguments.get("employee_code"):
+                    params["employeeCode"] = arguments["employee_code"]
+                if arguments.get("additional_fields"):
+                    params["additionalFields"] = arguments["additional_fields"]
+                r = client.get("/daily-workings", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_daily_workings":
-        params = {
-            "start": arguments["start_date"],
-            "end": arguments["end_date"],
-        }
-        if arguments.get("employee_code"):
-            params["employeeCode"] = arguments["employee_code"]
-        if arguments.get("additional_fields"):
-            params["additionalFields"] = arguments["additional_fields"]
-        r = client.get("/daily-workings", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_monthly_workings":
+                params = {"yearMonth": arguments["year_month"].replace("-", "")}
+                if arguments.get("employee_code"):
+                    params["employeeCode"] = arguments["employee_code"]
+                r = client.get("/monthly-workings", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_monthly_workings":
-        params = {"yearMonth": arguments["year_month"].replace("-", "")}
-        if arguments.get("employee_code"):
-            params["employeeCode"] = arguments["employee_code"]
-        r = client.get("/monthly-workings", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_daily_schedules":
+                params = {
+                    "start": arguments["start_date"],
+                    "end": arguments["end_date"],
+                }
+                if arguments.get("employee_code"):
+                    params["employeeCode"] = arguments["employee_code"]
+                r = client.get("/daily-schedules", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_daily_schedules":
-        params = {
-            "start": arguments["start_date"],
-            "end": arguments["end_date"],
-        }
-        if arguments.get("employee_code"):
-            params["employeeCode"] = arguments["employee_code"]
-        r = client.get("/daily-schedules", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "record_time":
+                payload = {
+                    "employeeCode": arguments["employee_code"],
+                    "date": arguments["date"],
+                    "time": arguments["time"],
+                    "typeCode": arguments["type_code"],
+                }
+                r = client.post("/daily-workings/timerecord", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "record_time":
-        payload = {
-            "employeeCode": arguments["employee_code"],
-            "date": arguments["date"],
-            "time": arguments["time"],
-            "typeCode": arguments["type_code"],
-        }
-        r = client.post("/daily-workings/timerecord", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

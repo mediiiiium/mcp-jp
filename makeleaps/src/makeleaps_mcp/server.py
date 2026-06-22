@@ -1,10 +1,11 @@
 import os
-import json
 import base64
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("makeleaps-mcp")
 BASE_URL = "https://api.makeleaps.com"
@@ -139,82 +140,86 @@ async def list_tools() -> list[types.Tool]:
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     global _token_cache
     try:
-        client = _client()
-    except Exception:
-        _token_cache = None
-        client = _client()
-    mid = _partner_mid()
+        try:
+            client = _client()
+        except Exception:
+            _token_cache = None
+            client = _client()
+        mid = _partner_mid()
 
-    if name == "list_clients":
-        params: dict = {}
-        if arguments.get("search"):
-            params["search"] = arguments["search"]
-        if arguments.get("archived") is not None:
-            params["archived"] = arguments["archived"]
-        r = client.get(f"/api/partner/{mid}/client/", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+        with client:
+            if name == "list_clients":
+                params: dict = {}
+                if arguments.get("search"):
+                    params["search"] = arguments["search"]
+                if arguments.get("archived") is not None:
+                    params["archived"] = arguments["archived"]
+                r = client.get(f"/api/partner/{mid}/client/", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_documents":
-        params = {}
-        if arguments.get("document_type"):
-            params["document_type"] = arguments["document_type"]
-        if arguments.get("search"):
-            params["search"] = arguments["search"]
-        if arguments.get("page"):
-            params["page"] = arguments["page"]
-        r = client.get(f"/api/partner/{mid}/document/", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_documents":
+                params = {}
+                if arguments.get("document_type"):
+                    params["document_type"] = arguments["document_type"]
+                if arguments.get("search"):
+                    params["search"] = arguments["search"]
+                if arguments.get("page"):
+                    params["page"] = arguments["page"]
+                r = client.get(f"/api/partner/{mid}/document/", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_document":
-        doc_mid = arguments["document_mid"]
-        r = client.get(f"/api/partner/{mid}/document/{doc_mid}/")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_document":
+                doc_mid = arguments["document_mid"]
+                r = client.get(f"/api/partner/{mid}/document/{doc_mid}/")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_document":
-        payload: dict = {
-            "document_type": arguments["document_type"],
-            "client": f"{BASE_URL}/api/partner/{mid}/client/{arguments['client_mid']}/",
-            "date": arguments["date"],
-            "currency": arguments.get("currency", "JPY"),
-            "autocalculate": True,
-            "line_items": arguments["line_items"],
-        }
-        if arguments.get("document_number"):
-            payload["document_number"] = arguments["document_number"]
-        if arguments.get("due_date"):
-            payload["due_date"] = arguments["due_date"]
-        if arguments.get("title"):
-            payload["title"] = arguments["title"]
-        r = client.post(f"/api/partner/{mid}/document/", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_document":
+                payload: dict = {
+                    "document_type": arguments["document_type"],
+                    "client": f"{BASE_URL}/api/partner/{mid}/client/{arguments['client_mid']}/",
+                    "date": arguments["date"],
+                    "currency": arguments.get("currency", "JPY"),
+                    "autocalculate": True,
+                    "line_items": arguments["line_items"],
+                }
+                if arguments.get("document_number"):
+                    payload["document_number"] = arguments["document_number"]
+                if arguments.get("due_date"):
+                    payload["due_date"] = arguments["due_date"]
+                if arguments.get("title"):
+                    payload["title"] = arguments["title"]
+                r = client.post(f"/api/partner/{mid}/document/", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "send_document":
-        doc_mid = arguments["document_mid"]
-        doc_url = f"{BASE_URL}/api/partner/{mid}/document/{doc_mid}/"
-        order_payload: dict = {
-            "recipient_emails": [{"address": arguments["recipient_email"]}],
-        }
-        if arguments.get("subject"):
-            order_payload["subject"] = arguments["subject"]
-        if arguments.get("message"):
-            order_payload["message"] = arguments["message"]
-        order_r = client.post(f"/api/partner/{mid}/sending/order/", json=order_payload)
-        order_r.raise_for_status()
-        order = order_r.json()
-        items_url = order.get("items_url", f"{BASE_URL}/api/partner/{mid}/sending/order/{order['mid']}/item/")
-        item_r = client.post(items_url, json={"document": doc_url})
-        item_r.raise_for_status()
-        send_url = order.get("send_url", f"{BASE_URL}/api/partner/{mid}/sending/order/{order['mid']}/send/")
-        send_r = client.post(send_url, json={})
-        send_r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(send_r.json(), ensure_ascii=False, indent=2))]
+            elif name == "send_document":
+                doc_mid = arguments["document_mid"]
+                doc_url = f"{BASE_URL}/api/partner/{mid}/document/{doc_mid}/"
+                order_payload: dict = {
+                    "recipient_emails": [{"address": arguments["recipient_email"]}],
+                }
+                if arguments.get("subject"):
+                    order_payload["subject"] = arguments["subject"]
+                if arguments.get("message"):
+                    order_payload["message"] = arguments["message"]
+                order_r = client.post(f"/api/partner/{mid}/sending/order/", json=order_payload)
+                order_r.raise_for_status()
+                order = order_r.json()
+                items_url = order.get("items_url", f"{BASE_URL}/api/partner/{mid}/sending/order/{order['mid']}/item/")
+                item_r = client.post(items_url, json={"document": doc_url})
+                item_r.raise_for_status()
+                send_url = order.get("send_url", f"{BASE_URL}/api/partner/{mid}/sending/order/{order['mid']}/send/")
+                send_r = client.post(send_url, json={})
+                send_r.raise_for_status()
+                return format_response(send_r.json())
 
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

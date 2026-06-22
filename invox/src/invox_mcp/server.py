@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("invox-mcp")
 
@@ -107,53 +108,55 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_received_invoices":
+                params: dict = {"page": arguments.get("page", 1)}
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("issue_date_from"):
+                    params["issue_date_from"] = arguments["issue_date_from"]
+                if arguments.get("issue_date_to"):
+                    params["issue_date_to"] = arguments["issue_date_to"]
+                if arguments.get("supplier_name"):
+                    params["supplier_name"] = arguments["supplier_name"]
+                r = client.get("/invoice_receive/invoice/list", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_received_invoices":
-        params: dict = {"page": arguments.get("page", 1)}
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        if arguments.get("issue_date_from"):
-            params["issue_date_from"] = arguments["issue_date_from"]
-        if arguments.get("issue_date_to"):
-            params["issue_date_to"] = arguments["issue_date_to"]
-        if arguments.get("supplier_name"):
-            params["supplier_name"] = arguments["supplier_name"]
-        r = client.get("/invoice_receive/invoice/list", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_received_invoice":
+                r = client.get("/invoice_receive/invoice/get", params={"invoice_id": arguments["invoice_id"]})
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_received_invoice":
-        r = client.get("/invoice_receive/invoice/get", params={"invoice_id": arguments["invoice_id"]})
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "approve_received_invoice":
+                payload: dict = {"invoice_id": arguments["invoice_id"]}
+                if arguments.get("comment"):
+                    payload["comment"] = arguments["comment"]
+                r = client.post("/invoice_receive/invoice/approve", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "approve_received_invoice":
-        payload: dict = {"invoice_id": arguments["invoice_id"]}
-        if arguments.get("comment"):
-            payload["comment"] = arguments["comment"]
-        r = client.post("/invoice_receive/invoice/approve", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_suppliers":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                r = client.get("/invoice_receive/supplier/list", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_suppliers":
-        params = {"page": arguments.get("page", 1)}
-        if arguments.get("name"):
-            params["name"] = arguments["name"]
-        r = client.get("/invoice_receive/supplier/list", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "export_journal":
+                payload = {"invoice_ids": arguments["invoice_ids"]}
+                if arguments.get("accounting_software"):
+                    payload["accounting_software"] = arguments["accounting_software"]
+                r = client.post("/invoice_receive/invoice/journal/export", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "export_journal":
-        payload = {"invoice_ids": arguments["invoice_ids"]}
-        if arguments.get("accounting_software"):
-            payload["accounting_software"] = arguments["accounting_software"]
-        r = client.post("/invoice_receive/invoice/journal/export", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

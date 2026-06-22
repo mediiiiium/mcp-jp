@@ -1,10 +1,11 @@
 import os
-import json
 import time
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("kaonavi-mcp")
 
@@ -108,40 +109,42 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_members":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                r = client.get("/members", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_members":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        r = client.get("/members", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_member":
+                r = client.get(f"/members/{arguments['code']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_member":
-        r = client.get(f"/members/{arguments['code']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_departments":
+                r = client.get("/departments")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_departments":
-        r = client.get("/departments")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_layouts":
+                r = client.get("/layouts")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_layouts":
-        r = client.get("/layouts")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_sheet":
+                layout_id = arguments["layout_id"]
+                r = client.get(f"/sheets/{layout_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_sheet":
-        layout_id = arguments["layout_id"]
-        r = client.get(f"/sheets/{layout_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

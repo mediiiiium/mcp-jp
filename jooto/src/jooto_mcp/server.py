@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("jooto-mcp")
 BASE_URL = "https://app.jooto.com"
@@ -96,60 +97,62 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_organizations":
+                r = client.get("/organizations")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_organizations":
-        r = client.get("/organizations")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_boards":
+                org_id = arguments["organization_id"]
+                params: dict = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                r = client.get(f"/organizations/{org_id}/boards", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_boards":
-        org_id = arguments["organization_id"]
-        params: dict = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        r = client.get(f"/organizations/{org_id}/boards", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_tasks":
+                org_id = arguments["organization_id"]
+                board_id = arguments["board_id"]
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("assigned_user_id"):
+                    params["assigned_user_id"] = arguments["assigned_user_id"]
+                r = client.get(f"/organizations/{org_id}/boards/{board_id}/tasks", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_tasks":
-        org_id = arguments["organization_id"]
-        board_id = arguments["board_id"]
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("assigned_user_id"):
-            params["assigned_user_id"] = arguments["assigned_user_id"]
-        r = client.get(f"/organizations/{org_id}/boards/{board_id}/tasks", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_task":
+                org_id = arguments["organization_id"]
+                board_id = arguments["board_id"]
+                payload: dict = {"name": arguments["name"]}
+                if arguments.get("description"):
+                    payload["description"] = arguments["description"]
+                if arguments.get("due_date"):
+                    payload["due_date"] = arguments["due_date"]
+                if arguments.get("assigned_user_id"):
+                    payload["assigned_user_id"] = arguments["assigned_user_id"]
+                r = client.post(f"/organizations/{org_id}/boards/{board_id}/tasks", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_task":
-        org_id = arguments["organization_id"]
-        board_id = arguments["board_id"]
-        payload: dict = {"name": arguments["name"]}
-        if arguments.get("description"):
-            payload["description"] = arguments["description"]
-        if arguments.get("due_date"):
-            payload["due_date"] = arguments["due_date"]
-        if arguments.get("assigned_user_id"):
-            payload["assigned_user_id"] = arguments["assigned_user_id"]
-        r = client.post(f"/organizations/{org_id}/boards/{board_id}/tasks", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_task":
+                org_id = arguments["organization_id"]
+                board_id = arguments["board_id"]
+                task_id = arguments["task_id"]
+                r = client.get(f"/organizations/{org_id}/boards/{board_id}/tasks/{task_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_task":
-        org_id = arguments["organization_id"]
-        board_id = arguments["board_id"]
-        task_id = arguments["task_id"]
-        r = client.get(f"/organizations/{org_id}/boards/{board_id}/tasks/{task_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

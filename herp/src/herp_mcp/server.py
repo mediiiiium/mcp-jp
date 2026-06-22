@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("herp-mcp")
 BASE_URL = "https://public-api.herp.cloud/hire/v1"
@@ -88,46 +89,48 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_candidacies":
+                params: dict = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("requisition_id"):
+                    params["requisitionId"] = arguments["requisition_id"]
+                r = client.get("/candidacies", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_candidacies":
-        params: dict = {
-            "limit": arguments.get("limit", 20),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("requisition_id"):
-            params["requisitionId"] = arguments["requisition_id"]
-        r = client.get("/candidacies", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_candidacy":
+                r = client.get(f"/candidacies/{arguments['candidacy_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_candidacy":
-        r = client.get(f"/candidacies/{arguments['candidacy_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_requisitions":
+                params = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                }
+                r = client.get("/requisitions", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_requisitions":
-        params = {
-            "limit": arguments.get("limit", 20),
-            "offset": arguments.get("offset", 0),
-        }
-        r = client.get("/requisitions", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_timeline_comments":
+                r = client.get(f"/candidacies/{arguments['candidacy_id']}/timeline-comments")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_timeline_comments":
-        r = client.get(f"/candidacies/{arguments['candidacy_id']}/timeline-comments")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "add_timeline_comment":
+                payload = {"body": arguments["body"]}
+                r = client.post(f"/candidacies/{arguments['candidacy_id']}/timeline-comments", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "add_timeline_comment":
-        payload = {"body": arguments["body"]}
-        r = client.post(f"/candidacies/{arguments['candidacy_id']}/timeline-comments", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():
