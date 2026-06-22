@@ -1,0 +1,19 @@
+[project]
+name = "cloudsign-mcp"
+version = "0.1.0"
+description = "MCP server for クラウドサイン（電子契約・電子署名）"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+cloudsign-mcp = "cloudsign_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cloudsign_mcp"]
