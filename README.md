@@ -90,6 +90,7 @@
 | `miitel/` | MiiTel（IP電話・音声解析）| ~~開発中~~ → **公式MCPあり**（RevComm、2025年12月 Beta）|
 | `salesgo/` | SALES GO / GoCoo!（SFA） | ~~開発中~~ → **公式MCPあり**（日本初MCPサーバー対応SFA、2025年10月 GA）|
 | `mackerel/` | Mackerel（サーバー監視・可観測性） | ~~開発中~~ → **公式MCPあり**（mackerelio-labs/mcp-server）|
+| `gmosign/` | 電子印鑑GMOサイン（電子契約・電子署名） | ~~開発中~~ → **公式MCPあり**（GMO AI Connect、2026年秋 GA予定）|
 
 ## 次の候補
 
