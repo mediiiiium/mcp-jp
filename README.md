@@ -54,6 +54,8 @@
 | `activecampaign/` | ActiveCampaign（マーケティングオートメーション・CRM） | 開発中（5ツール実装済み） |
 | `sentry/` | Sentry（エラートラッキング・パフォーマンス監視） | 開発中（5ツール実装済み） |
 | `heroku/` | Heroku（PaaS・アプリデプロイ管理） | 開発中（5ツール実装済み） |
+| `cloudflare/` | Cloudflare（CDN・DNS・セキュリティ管理） | 開発中（5ツール実装済み） |
+| `vercel/` | Vercel（フロントエンドデプロイ・ホスティング） | 開発中（5ツール実装済み） |
 
 ## 次の候補
 
