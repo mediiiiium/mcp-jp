@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("board-mcp")
 BASE_URL = "https://api.the-board.jp/v1"
@@ -99,66 +100,68 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_clients":
+                params: dict = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                r = client.get("/clients", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_clients":
-        params: dict = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("name"):
-            params["name"] = arguments["name"]
-        r = client.get("/clients", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_projects":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("client_id"):
+                    params["client_id"] = arguments["client_id"]
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                r = client.get("/projects", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_projects":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("client_id"):
-            params["client_id"] = arguments["client_id"]
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        r = client.get("/projects", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_project":
+                r = client.get(f"/projects/{arguments['project_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_project":
-        r = client.get(f"/projects/{arguments['project_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_invoices":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("client_id"):
+                    params["client_id"] = arguments["client_id"]
+                if arguments.get("project_id"):
+                    params["project_id"] = arguments["project_id"]
+                r = client.get("/invoices", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_invoices":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("client_id"):
-            params["client_id"] = arguments["client_id"]
-        if arguments.get("project_id"):
-            params["project_id"] = arguments["project_id"]
-        r = client.get("/invoices", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_project":
+                payload: dict = {"name": arguments["name"]}
+                if arguments.get("client_id"):
+                    payload["client_id"] = arguments["client_id"]
+                if arguments.get("start_date"):
+                    payload["start_date"] = arguments["start_date"]
+                if arguments.get("end_date"):
+                    payload["end_date"] = arguments["end_date"]
+                if arguments.get("budget") is not None:
+                    payload["budget"] = arguments["budget"]
+                r = client.post("/projects", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_project":
-        payload: dict = {"name": arguments["name"]}
-        if arguments.get("client_id"):
-            payload["client_id"] = arguments["client_id"]
-        if arguments.get("start_date"):
-            payload["start_date"] = arguments["start_date"]
-        if arguments.get("end_date"):
-            payload["end_date"] = arguments["end_date"]
-        if arguments.get("budget") is not None:
-            payload["budget"] = arguments["budget"]
-        r = client.post("/projects", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

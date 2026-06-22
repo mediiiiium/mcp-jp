@@ -5,6 +5,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
 
+from ._http import format_response, error_response
+
 app = Server("esa-mcp")
 
 BASE_URL = "https://api.esa.io"
@@ -180,68 +182,71 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client, team = _client()
+    try:
+        client, team = _client()
+        with client:
+            if name == "list_posts":
+                params: dict = {
+                    "sort": arguments.get("sort", "updated"),
+                    "order": arguments.get("order", "desc"),
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("q"):
+                    params["q"] = arguments["q"]
+                r = client.get(f"/v1/teams/{team}/posts", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_posts":
-        params: dict = {
-            "sort": arguments.get("sort", "updated"),
-            "order": arguments.get("order", "desc"),
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("q"):
-            params["q"] = arguments["q"]
-        r = client.get(f"/v1/teams/{team}/posts", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_post":
+                num = arguments["post_number"]
+                params = {}
+                if arguments.get("include"):
+                    params["include"] = arguments["include"]
+                r = client.get(f"/v1/teams/{team}/posts/{num}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_post":
-        num = arguments["post_number"]
-        params = {}
-        if arguments.get("include"):
-            params["include"] = arguments["include"]
-        r = client.get(f"/v1/teams/{team}/posts/{num}", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_post":
+                post_data: dict = {
+                    "name": arguments["name"],
+                    "wip": arguments.get("wip", True),
+                }
+                if arguments.get("body_md"):
+                    post_data["body_md"] = arguments["body_md"]
+                if arguments.get("category"):
+                    post_data["category"] = arguments["category"]
+                if arguments.get("tags"):
+                    post_data["tags"] = arguments["tags"]
+                if arguments.get("message"):
+                    post_data["message"] = arguments["message"]
+                r = client.post(f"/v1/teams/{team}/posts", content=json.dumps({"post": post_data}))
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_post":
-        post_data: dict = {
-            "name": arguments["name"],
-            "wip": arguments.get("wip", True),
-        }
-        if arguments.get("body_md"):
-            post_data["body_md"] = arguments["body_md"]
-        if arguments.get("category"):
-            post_data["category"] = arguments["category"]
-        if arguments.get("tags"):
-            post_data["tags"] = arguments["tags"]
-        if arguments.get("message"):
-            post_data["message"] = arguments["message"]
-        r = client.post(f"/v1/teams/{team}/posts", content=json.dumps({"post": post_data}))
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "update_post":
+                num = arguments["post_number"]
+                post_data = {}
+                for field in ["name", "body_md", "category", "tags", "wip", "message"]:
+                    if arguments.get(field) is not None:
+                        post_data[field] = arguments[field]
+                r = client.patch(f"/v1/teams/{team}/posts/{num}", content=json.dumps({"post": post_data}))
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "update_post":
-        num = arguments["post_number"]
-        post_data = {}
-        for field in ["name", "body_md", "category", "tags", "wip", "message"]:
-            if arguments.get(field) is not None:
-                post_data[field] = arguments[field]
-        r = client.patch(f"/v1/teams/{team}/posts/{num}", content=json.dumps({"post": post_data}))
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_comments":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                r = client.get(f"/v1/teams/{team}/comments", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_comments":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        r = client.get(f"/v1/teams/{team}/comments", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

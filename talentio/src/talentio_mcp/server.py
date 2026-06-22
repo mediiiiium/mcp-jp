@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("talentio-mcp")
 BASE_URL = "https://talentio.com/api/v1"
@@ -82,42 +83,44 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_candidates":
+                params = {"page": arguments.get("page", 1)}
+                r = client.get("/candidates", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_candidates":
-        params = {"page": arguments.get("page", 1)}
-        r = client.get("/candidates", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_candidate":
+                r = client.get(f"/candidates/{arguments['candidate_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_candidate":
-        r = client.get(f"/candidates/{arguments['candidate_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_jobs":
+                params: dict = {"page": arguments.get("page", 1)}
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                r = client.get("/jobs", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_jobs":
-        params: dict = {"page": arguments.get("page", 1)}
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        r = client.get("/jobs", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_applications":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("job_id"):
+                    params["job_id"] = arguments["job_id"]
+                r = client.get("/applications", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_applications":
-        params = {"page": arguments.get("page", 1)}
-        if arguments.get("job_id"):
-            params["job_id"] = arguments["job_id"]
-        r = client.get("/applications", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_pipeline_stages":
+                r = client.get("/pipeline_stages")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_pipeline_stages":
-        r = client.get("/pipeline_stages")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("notepm-mcp")
 
@@ -101,71 +102,73 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_notes":
+                params: dict = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                    "include_archived": 1 if arguments.get("include_archived") else 0,
+                }
+                r = client.get("/notes", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_notes":
-        params: dict = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-            "include_archived": 1 if arguments.get("include_archived") else 0,
-        }
-        r = client.get("/notes", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "search_pages":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("q"):
+                    params["q"] = arguments["q"]
+                if arguments.get("note_code"):
+                    params["note_code"] = arguments["note_code"]
+                if arguments.get("tag_name"):
+                    params["tag_name"] = arguments["tag_name"]
+                if arguments.get("only_title"):
+                    params["only_title"] = 1
+                r = client.get("/pages", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "search_pages":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("q"):
-            params["q"] = arguments["q"]
-        if arguments.get("note_code"):
-            params["note_code"] = arguments["note_code"]
-        if arguments.get("tag_name"):
-            params["tag_name"] = arguments["tag_name"]
-        if arguments.get("only_title"):
-            params["only_title"] = 1
-        r = client.get("/pages", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_page":
+                r = client.get(f"/pages/{arguments['page_code']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_page":
-        r = client.get(f"/pages/{arguments['page_code']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_page":
+                payload: dict = {
+                    "note_code": arguments["note_code"],
+                    "title": arguments["title"],
+                }
+                if arguments.get("body"):
+                    payload["body"] = arguments["body"]
+                if arguments.get("memo"):
+                    payload["memo"] = arguments["memo"]
+                if arguments.get("tags"):
+                    payload["tags"] = arguments["tags"]
+                r = client.post("/pages", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_page":
-        payload: dict = {
-            "note_code": arguments["note_code"],
-            "title": arguments["title"],
-        }
-        if arguments.get("body"):
-            payload["body"] = arguments["body"]
-        if arguments.get("memo"):
-            payload["memo"] = arguments["memo"]
-        if arguments.get("tags"):
-            payload["tags"] = arguments["tags"]
-        r = client.post("/pages", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "update_page":
+                payload = {}
+                if arguments.get("title"):
+                    payload["title"] = arguments["title"]
+                if arguments.get("body"):
+                    payload["body"] = arguments["body"]
+                if arguments.get("memo"):
+                    payload["memo"] = arguments["memo"]
+                if arguments.get("tags") is not None:
+                    payload["tags"] = arguments["tags"]
+                r = client.patch(f"/pages/{arguments['page_code']}", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "update_page":
-        payload = {}
-        if arguments.get("title"):
-            payload["title"] = arguments["title"]
-        if arguments.get("body"):
-            payload["body"] = arguments["body"]
-        if arguments.get("memo"):
-            payload["memo"] = arguments["memo"]
-        if arguments.get("tags") is not None:
-            payload["tags"] = arguments["tags"]
-        r = client.patch(f"/pages/{arguments['page_code']}", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

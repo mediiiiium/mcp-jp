@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("smaregi-mcp")
 
@@ -98,67 +99,69 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_products":
+                params: dict = {
+                    "limit": arguments.get("limit", 100),
+                    "page": arguments.get("page", 1),
+                }
+                if arguments.get("product_name"):
+                    params["product_name"] = arguments["product_name"]
+                if arguments.get("category_id"):
+                    params["category_id"] = arguments["category_id"]
+                r = client.get("/products/", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_products":
-        params: dict = {
-            "limit": arguments.get("limit", 100),
-            "page": arguments.get("page", 1),
-        }
-        if arguments.get("product_name"):
-            params["product_name"] = arguments["product_name"]
-        if arguments.get("category_id"):
-            params["category_id"] = arguments["category_id"]
-        r = client.get("/products/", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_product":
+                r = client.get(f"/products/{arguments['product_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_product":
-        r = client.get(f"/products/{arguments['product_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_transactions":
+                params = {
+                    "limit": arguments.get("limit", 100),
+                    "page": arguments.get("page", 1),
+                }
+                if arguments.get("store_id"):
+                    params["store_id"] = arguments["store_id"]
+                if arguments.get("transaction_date_from"):
+                    params["transaction_date_from"] = arguments["transaction_date_from"]
+                if arguments.get("transaction_date_to"):
+                    params["transaction_date_to"] = arguments["transaction_date_to"]
+                if arguments.get("customer_id"):
+                    params["customer_id"] = arguments["customer_id"]
+                r = client.get("/transactions/", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_transactions":
-        params = {
-            "limit": arguments.get("limit", 100),
-            "page": arguments.get("page", 1),
-        }
-        if arguments.get("store_id"):
-            params["store_id"] = arguments["store_id"]
-        if arguments.get("transaction_date_from"):
-            params["transaction_date_from"] = arguments["transaction_date_from"]
-        if arguments.get("transaction_date_to"):
-            params["transaction_date_to"] = arguments["transaction_date_to"]
-        if arguments.get("customer_id"):
-            params["customer_id"] = arguments["customer_id"]
-        r = client.get("/transactions/", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_customers":
+                params = {
+                    "limit": arguments.get("limit", 100),
+                    "page": arguments.get("page", 1),
+                }
+                if arguments.get("customer_name"):
+                    params["customer_name"] = arguments["customer_name"]
+                if arguments.get("rank_id"):
+                    params["rank_id"] = arguments["rank_id"]
+                r = client.get("/customers/", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_customers":
-        params = {
-            "limit": arguments.get("limit", 100),
-            "page": arguments.get("page", 1),
-        }
-        if arguments.get("customer_name"):
-            params["customer_name"] = arguments["customer_name"]
-        if arguments.get("rank_id"):
-            params["rank_id"] = arguments["rank_id"]
-        r = client.get("/customers/", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_stores":
+                params = {
+                    "limit": arguments.get("limit", 100),
+                    "page": arguments.get("page", 1),
+                }
+                r = client.get("/stores/", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_stores":
-        params = {
-            "limit": arguments.get("limit", 100),
-            "page": arguments.get("page", 1),
-        }
-        r = client.get("/stores/", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

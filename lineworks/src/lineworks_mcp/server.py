@@ -1,11 +1,12 @@
 import os
-import json
 import time
 import httpx
 import jwt
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("lineworks-mcp")
 BASE_URL = "https://www.worksapis.com/v1.0"
@@ -131,52 +132,55 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
-    bot_id = _bot_id()
+    try:
+        with _client() as client:
+            bot_id = _bot_id()
 
-    if name == "list_channels":
-        params = {"limit": arguments.get("limit", 20)}
-        r = client.get(f"/bots/{bot_id}/channels", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            if name == "list_channels":
+                params = {"limit": arguments.get("limit", 20)}
+                r = client.get(f"/bots/{bot_id}/channels", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "send_channel_message":
-        payload = {
-            "content": {
-                "type": "text",
-                "text": arguments["text"],
-            }
-        }
-        r = client.post(f"/bots/{bot_id}/channels/{arguments['channel_id']}/messages", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "send_channel_message":
+                payload = {
+                    "content": {
+                        "type": "text",
+                        "text": arguments["text"],
+                    }
+                }
+                r = client.post(f"/bots/{bot_id}/channels/{arguments['channel_id']}/messages", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "send_user_message":
-        payload = {
-            "content": {
-                "type": "text",
-                "text": arguments["text"],
-            }
-        }
-        r = client.post(f"/bots/{bot_id}/users/{arguments['user_id']}/messages", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "send_user_message":
+                payload = {
+                    "content": {
+                        "type": "text",
+                        "text": arguments["text"],
+                    }
+                }
+                r = client.post(f"/bots/{bot_id}/users/{arguments['user_id']}/messages", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_members":
-        params: dict = {"limit": arguments.get("limit", 20)}
-        if arguments.get("cursor"):
-            params["cursor"] = arguments["cursor"]
-        r = client.get("/users", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_members":
+                params: dict = {"limit": arguments.get("limit", 20)}
+                if arguments.get("cursor"):
+                    params["cursor"] = arguments["cursor"]
+                r = client.get("/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_member":
-        r = client.get(f"/users/{arguments['user_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_member":
+                r = client.get(f"/users/{arguments['user_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

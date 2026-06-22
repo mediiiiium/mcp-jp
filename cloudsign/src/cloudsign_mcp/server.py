@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("cloudsign-mcp")
 BASE_URL = "https://api.cloudsign.jp"
@@ -116,56 +117,58 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_documents":
+                params = {
+                    "offset": arguments.get("offset", 0),
+                    "limit": arguments.get("limit", 20),
+                }
+                if arguments.get("title"):
+                    params["title"] = arguments["title"]
+                if arguments.get("status") is not None:
+                    params["status"] = arguments["status"]
+                r = client.get("/documents", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_documents":
-        params = {
-            "offset": arguments.get("offset", 0),
-            "limit": arguments.get("limit", 20),
-        }
-        if arguments.get("title"):
-            params["title"] = arguments["title"]
-        if arguments.get("status") is not None:
-            params["status"] = arguments["status"]
-        r = client.get("/documents", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_document":
+                r = client.get(f"/documents/{arguments['document_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_document":
-        r = client.get(f"/documents/{arguments['document_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_document":
+                payload: dict = {"title": arguments["title"]}
+                if arguments.get("template_id"):
+                    payload["template_id"] = arguments["template_id"]
+                if arguments.get("message"):
+                    payload["message"] = arguments["message"]
+                r = client.post("/documents", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_document":
-        payload: dict = {"title": arguments["title"]}
-        if arguments.get("template_id"):
-            payload["template_id"] = arguments["template_id"]
-        if arguments.get("message"):
-            payload["message"] = arguments["message"]
-        r = client.post("/documents", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "set_participants":
+                document_id = arguments["document_id"]
+                results = []
+                for i, p in enumerate(arguments["participants"]):
+                    payload = {"email": p["email"], "name": p["name"]}
+                    r = client.put(f"/documents/{document_id}/participants/{i + 1}", json=payload)
+                    r.raise_for_status()
+                    results.append(r.json())
+                return format_response(results)
 
-    elif name == "set_participants":
-        document_id = arguments["document_id"]
-        results = []
-        for i, p in enumerate(arguments["participants"]):
-            payload = {"email": p["email"], "name": p["name"]}
-            r = client.put(f"/documents/{document_id}/participants/{i + 1}", json=payload)
-            r.raise_for_status()
-            results.append(r.json())
-        return [types.TextContent(type="text", text=json.dumps(results, ensure_ascii=False, indent=2))]
+            elif name == "send_document":
+                r = client.put(
+                    f"/documents/{arguments['document_id']}",
+                    json={"status": 1},
+                )
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "send_document":
-        r = client.put(
-            f"/documents/{arguments['document_id']}",
-            json={"status": 1},
-        )
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

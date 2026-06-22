@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("yappli-crm-mcp")
 
@@ -124,52 +125,54 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_users":
+                params: dict = {}
+                if arguments.get("page"):
+                    params["page"] = arguments["page"]
+                if arguments.get("per_page"):
+                    params["per_page"] = arguments["per_page"]
+                r = client.get("/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_users":
-        params: dict = {}
-        if arguments.get("page"):
-            params["page"] = arguments["page"]
-        if arguments.get("per_page"):
-            params["per_page"] = arguments["per_page"]
-        r = client.get("/users", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_user":
+                r = client.get(f"/users/{arguments['user_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_user":
-        r = client.get(f"/users/{arguments['user_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_user":
+                body: dict = {}
+                for key in ("unique_id", "name", "email", "birthday", "gender"):
+                    if arguments.get(key) is not None:
+                        body[key] = arguments[key]
+                r = client.post("/users", json=body)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_user":
-        body: dict = {}
-        for key in ("unique_id", "name", "email", "birthday", "gender"):
-            if arguments.get(key) is not None:
-                body[key] = arguments[key]
-        r = client.post("/users", json=body)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_user_points":
+                params = {}
+                if arguments.get("page"):
+                    params["page"] = arguments["page"]
+                r = client.get(f"/users/{arguments['user_id']}/points", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_user_points":
-        params = {}
-        if arguments.get("page"):
-            params["page"] = arguments["page"]
-        r = client.get(f"/users/{arguments['user_id']}/points", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "add_user_points":
+                body = {"point": arguments["point"]}
+                if arguments.get("reason"):
+                    body["reason"] = arguments["reason"]
+                if arguments.get("expire_date"):
+                    body["expire_date"] = arguments["expire_date"]
+                r = client.post(f"/users/{arguments['user_id']}/points", json=body)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "add_user_points":
-        body = {"point": arguments["point"]}
-        if arguments.get("reason"):
-            body["reason"] = arguments["reason"]
-        if arguments.get("expire_date"):
-            body["expire_date"] = arguments["expire_date"]
-        r = client.post(f"/users/{arguments['user_id']}/points", json=body)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("typeform-mcp")
 BASE_URL = "https://api.typeform.com"
@@ -87,53 +88,55 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_forms":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "page_size": arguments.get("page_size", 10),
+                }
+                if arguments.get("search"):
+                    params["search"] = arguments["search"]
+                r = client.get("/forms", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_forms":
-        params = {
-            "page": arguments.get("page", 1),
-            "page_size": arguments.get("page_size", 10),
-        }
-        if arguments.get("search"):
-            params["search"] = arguments["search"]
-        r = client.get("/forms", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_form":
+                form_id = arguments["form_id"]
+                r = client.get(f"/forms/{form_id}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_form":
-        form_id = arguments["form_id"]
-        r = client.get(f"/forms/{form_id}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_responses":
+                form_id = arguments["form_id"]
+                params = {"page_size": arguments.get("page_size", 25)}
+                if arguments.get("since"):
+                    params["since"] = arguments["since"]
+                if arguments.get("until"):
+                    params["until"] = arguments["until"]
+                r = client.get(f"/forms/{form_id}/responses", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_responses":
-        form_id = arguments["form_id"]
-        params = {"page_size": arguments.get("page_size", 25)}
-        if arguments.get("since"):
-            params["since"] = arguments["since"]
-        if arguments.get("until"):
-            params["until"] = arguments["until"]
-        r = client.get(f"/forms/{form_id}/responses", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_workspaces":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "page_size": arguments.get("page_size", 10),
+                }
+                r = client.get("/workspaces", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_workspaces":
-        params = {
-            "page": arguments.get("page", 1),
-            "page_size": arguments.get("page_size", 10),
-        }
-        r = client.get("/workspaces", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_response_summary":
+                form_id = arguments["form_id"]
+                r = client.get(f"/forms/{form_id}/insights/summary")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_response_summary":
-        form_id = arguments["form_id"]
-        r = client.get(f"/forms/{form_id}/insights/summary")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

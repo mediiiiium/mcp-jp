@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("hrmos-kintai-mcp")
 
@@ -116,61 +117,65 @@ async def list_tools() -> list[types.Tool]:
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     global _token_cache
     try:
-        client = _client()
-    except Exception:
-        _token_cache = None
-        client = _client()
+        try:
+            client = _client()
+        except Exception:
+            _token_cache = None
+            client = _client()
 
-    if name == "get_monthly_attendance":
-        month = arguments["month"]
-        params: dict = {
-            "page": arguments.get("page", 1),
-            "limit": arguments.get("limit", 50),
-        }
-        r = client.get(f"/work_outputs/monthly/{month}", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+        with client:
+            if name == "get_monthly_attendance":
+                month = arguments["month"]
+                params: dict = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                r = client.get(f"/work_outputs/monthly/{month}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_daily_attendance":
-        day = arguments["day"]
-        params = {
-            "page": arguments.get("page", 1),
-            "limit": arguments.get("limit", 50),
-        }
-        r = client.get(f"/work_outputs/daily/{day}", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_daily_attendance":
+                day = arguments["day"]
+                params = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                r = client.get(f"/work_outputs/daily/{day}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_users":
-        params = {
-            "page": arguments.get("page", 1),
-            "limit": arguments.get("limit", 50),
-        }
-        r = client.get("/users", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_users":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                r = client.get("/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_departments":
-        r = client.get("/departments")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_departments":
+                r = client.get("/departments")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_user_stamps":
-        user_id = arguments["user_id"]
-        params = {
-            "page": arguments.get("page", 1),
-            "limit": arguments.get("limit", 50),
-        }
-        if arguments.get("from"):
-            params["from"] = arguments["from"]
-        if arguments.get("to"):
-            params["to"] = arguments["to"]
-        r = client.get(f"/stamp_logs/user/{user_id}", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_user_stamps":
+                user_id = arguments["user_id"]
+                params = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                if arguments.get("from"):
+                    params["from"] = arguments["from"]
+                if arguments.get("to"):
+                    params["to"] = arguments["to"]
+                r = client.get(f"/stamp_logs/user/{user_id}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

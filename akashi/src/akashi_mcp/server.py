@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("akashi-mcp")
 
@@ -125,42 +126,45 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    company_id = _company_id()
+    try:
+        company_id = _company_id()
 
-    if name == "get_stamps":
-        params: dict = {
-            "start_date": arguments["start_date"],
-            "end_date": arguments["end_date"],
-        }
-        if arguments.get("staff_id"):
-            path = f"/{company_id}/stamps/{arguments['staff_id']}"
+        if name == "get_stamps":
+            params: dict = {
+                "start_date": arguments["start_date"],
+                "end_date": arguments["end_date"],
+            }
+            if arguments.get("staff_id"):
+                path = f"/{company_id}/stamps/{arguments['staff_id']}"
+            else:
+                path = f"/{company_id}/stamps"
+            result = _get(path, params)
+            return format_response(result)
+
+        elif name == "post_stamp":
+            body: dict = {"type": arguments["stamp_type"]}
+            if arguments.get("stamped_at"):
+                body["stampedAt"] = arguments["stamped_at"]
+            result = _post(f"/{company_id}/stamps", body)
+            return format_response(result)
+
+        elif name == "list_staffs":
+            params = {"page": arguments.get("page", 1)}
+            result = _get(f"/{company_id}/staffs", params)
+            return format_response(result)
+
+        elif name == "get_staff":
+            result = _get(f"/{company_id}/staffs/{arguments['staff_id']}")
+            return format_response(result)
+
+        elif name == "get_alerts":
+            result = _get(f"/{company_id}/alerts")
+            return format_response(result)
+
         else:
-            path = f"/{company_id}/stamps"
-        result = _get(path, params)
-        return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
-
-    elif name == "post_stamp":
-        body: dict = {"type": arguments["stamp_type"]}
-        if arguments.get("stamped_at"):
-            body["stampedAt"] = arguments["stamped_at"]
-        result = _post(f"/{company_id}/stamps", body)
-        return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
-
-    elif name == "list_staffs":
-        params = {"page": arguments.get("page", 1)}
-        result = _get(f"/{company_id}/staffs", params)
-        return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
-
-    elif name == "get_staff":
-        result = _get(f"/{company_id}/staffs/{arguments['staff_id']}")
-        return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
-
-    elif name == "get_alerts":
-        result = _get(f"/{company_id}/alerts")
-        return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

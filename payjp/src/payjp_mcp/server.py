@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("payjp-mcp")
 
@@ -95,67 +96,69 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_charges":
+                params: dict = {}
+                if arguments.get("limit") is not None:
+                    params["limit"] = arguments["limit"]
+                if arguments.get("offset") is not None:
+                    params["offset"] = arguments["offset"]
+                if arguments.get("customer"):
+                    params["customer"] = arguments["customer"]
+                if arguments.get("since"):
+                    params["since"] = arguments["since"]
+                if arguments.get("until"):
+                    params["until"] = arguments["until"]
+                r = client.get("/charges", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_charges":
-        params: dict = {}
-        if arguments.get("limit") is not None:
-            params["limit"] = arguments["limit"]
-        if arguments.get("offset") is not None:
-            params["offset"] = arguments["offset"]
-        if arguments.get("customer"):
-            params["customer"] = arguments["customer"]
-        if arguments.get("since"):
-            params["since"] = arguments["since"]
-        if arguments.get("until"):
-            params["until"] = arguments["until"]
-        r = client.get("/charges", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_charge":
+                r = client.get(f"/charges/{arguments['charge_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_charge":
-        r = client.get(f"/charges/{arguments['charge_id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "refund_charge":
+                body: dict = {}
+                if arguments.get("amount") is not None:
+                    body["amount"] = arguments["amount"]
+                r = client.post(f"/charges/{arguments['charge_id']}/refund", data=body)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "refund_charge":
-        body: dict = {}
-        if arguments.get("amount") is not None:
-            body["amount"] = arguments["amount"]
-        r = client.post(f"/charges/{arguments['charge_id']}/refund", data=body)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_customers":
+                params = {}
+                if arguments.get("limit") is not None:
+                    params["limit"] = arguments["limit"]
+                if arguments.get("offset") is not None:
+                    params["offset"] = arguments["offset"]
+                if arguments.get("since"):
+                    params["since"] = arguments["since"]
+                r = client.get("/customers", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_customers":
-        params = {}
-        if arguments.get("limit") is not None:
-            params["limit"] = arguments["limit"]
-        if arguments.get("offset") is not None:
-            params["offset"] = arguments["offset"]
-        if arguments.get("since"):
-            params["since"] = arguments["since"]
-        r = client.get("/customers", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_subscriptions":
+                params = {}
+                if arguments.get("limit") is not None:
+                    params["limit"] = arguments["limit"]
+                if arguments.get("offset") is not None:
+                    params["offset"] = arguments["offset"]
+                if arguments.get("customer"):
+                    params["customer"] = arguments["customer"]
+                if arguments.get("plan"):
+                    params["plan"] = arguments["plan"]
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                r = client.get("/subscriptions", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_subscriptions":
-        params = {}
-        if arguments.get("limit") is not None:
-            params["limit"] = arguments["limit"]
-        if arguments.get("offset") is not None:
-            params["offset"] = arguments["offset"]
-        if arguments.get("customer"):
-            params["customer"] = arguments["customer"]
-        if arguments.get("plan"):
-            params["plan"] = arguments["plan"]
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        r = client.get("/subscriptions", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001 — MCP では例外を意味のある文字列で返す
+        return error_response(exc)
 
 
 def main():

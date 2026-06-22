@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("mazrica-mcp")
 
@@ -95,46 +96,48 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "list_customers":
+                params: dict = {"page": arguments.get("page", 1)}
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                r = client.get("/customers", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_customers":
-        params: dict = {"page": arguments.get("page", 1)}
-        if arguments.get("name"):
-            params["name"] = arguments["name"]
-        r = client.get("/customers", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_customer":
+                payload = {k: v for k, v in arguments.items() if v is not None}
+                r = client.post("/customers", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_customer":
-        payload = {k: v for k, v in arguments.items() if v is not None}
-        r = client.post("/customers", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_deals":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                if arguments.get("customer_id"):
+                    params["customer_id"] = arguments["customer_id"]
+                r = client.get("/deals", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_deals":
-        params = {"page": arguments.get("page", 1)}
-        if arguments.get("name"):
-            params["name"] = arguments["name"]
-        if arguments.get("customer_id"):
-            params["customer_id"] = arguments["customer_id"]
-        r = client.get("/deals", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_deal":
+                payload = {k: v for k, v in arguments.items() if v is not None}
+                r = client.post("/deals", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_deal":
-        payload = {k: v for k, v in arguments.items() if v is not None}
-        r = client.post("/deals", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_users":
+                params = {"page": arguments.get("page", 1)}
+                r = client.get("/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_users":
-        params = {"page": arguments.get("page", 1)}
-        r = client.get("/users", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

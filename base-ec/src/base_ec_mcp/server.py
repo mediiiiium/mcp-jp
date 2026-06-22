@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("base-ec-mcp")
 
@@ -131,58 +132,60 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
+    try:
+        with _client() as client:
+            if name == "get_shop":
+                r = client.get("/users/me")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "get_shop":
-        r = client.get("/users/me")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_items":
+                params: dict = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("order"):
+                    params["order"] = arguments["order"]
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/items", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_items":
-        params: dict = {
-            "limit": arguments.get("limit", 20),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("order"):
-            params["order"] = arguments["order"]
-        if arguments.get("sort"):
-            params["sort"] = arguments["sort"]
-        r = client.get("/items", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_orders":
+                params = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("start_modified"):
+                    params["start_modified"] = arguments["start_modified"]
+                if arguments.get("end_modified"):
+                    params["end_modified"] = arguments["end_modified"]
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                r = client.get("/orders", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_orders":
-        params = {
-            "limit": arguments.get("limit", 20),
-            "offset": arguments.get("offset", 0),
-        }
-        if arguments.get("start_modified"):
-            params["start_modified"] = arguments["start_modified"]
-        if arguments.get("end_modified"):
-            params["end_modified"] = arguments["end_modified"]
-        if arguments.get("status"):
-            params["status"] = arguments["status"]
-        r = client.get("/orders", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_order":
+                key = arguments["unique_key"]
+                r = client.get(f"/orders/detail/{key}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_order":
-        key = arguments["unique_key"]
-        r = client.get(f"/orders/detail/{key}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "update_order_status":
+                data = {
+                    "unique_key": arguments["unique_key"],
+                    "status": arguments["status"],
+                }
+                r = client.post("/orders/edit_status", data=data)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "update_order_status":
-        data = {
-            "unique_key": arguments["unique_key"],
-            "status": arguments["status"],
-        }
-        r = client.post("/orders/edit_status", data=data)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

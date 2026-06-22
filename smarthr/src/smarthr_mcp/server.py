@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("smarthr-mcp")
 
@@ -95,53 +96,55 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = get_client()
+    try:
+        with get_client() as client:
+            if name == "list_crews":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("employment_type_id"):
+                    params["employment_type_id"] = arguments["employment_type_id"]
+                if arguments.get("department_id"):
+                    params["department_id"] = arguments["department_id"]
+                r = client.get("/crews", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    if name == "list_crews":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 20),
-        }
-        if arguments.get("employment_type_id"):
-            params["employment_type_id"] = arguments["employment_type_id"]
-        if arguments.get("department_id"):
-            params["department_id"] = arguments["department_id"]
-        r = client.get("/crews", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "get_crew":
+                r = client.get(f"/crews/{arguments['id']}")
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "get_crew":
-        r = client.get(f"/crews/{arguments['id']}")
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_departments":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 50),
+                }
+                r = client.get("/departments", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_departments":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 50),
-        }
-        r = client.get("/departments", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_employment_types":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 50),
+                }
+                r = client.get("/employment_types", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_employment_types":
-        params = {
-            "page": arguments.get("page", 1),
-            "per_page": arguments.get("per_page", 50),
-        }
-        r = client.get("/employment_types", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "update_crew":
+                crew_id = arguments.pop("id")
+                payload = {k: v for k, v in arguments.items() if v is not None}
+                r = client.patch(f"/crews/{crew_id}", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "update_crew":
-        crew_id = arguments.pop("id")
-        payload = {k: v for k, v in arguments.items() if v is not None}
-        r = client.patch(f"/crews/{crew_id}", json=payload)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
-
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():

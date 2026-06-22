@@ -1,9 +1,10 @@
 import os
-import json
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
+
+from ._http import format_response, error_response
 
 app = Server("trello-mcp")
 BASE_URL = "https://api.trello.com/1"
@@ -87,45 +88,48 @@ async def list_tools() -> list[types.Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    client = _client()
-    auth = _params()
+    try:
+        with _client() as client:
+            auth = _params()
 
-    if name == "list_boards":
-        r = client.get("/members/me/boards", params=auth)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            if name == "list_boards":
+                r = client.get("/members/me/boards", params=auth)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_lists":
-        board_id = arguments["board_id"]
-        r = client.get(f"/boards/{board_id}/lists", params=auth)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_lists":
+                board_id = arguments["board_id"]
+                r = client.get(f"/boards/{board_id}/lists", params=auth)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "list_cards":
-        list_id = arguments["list_id"]
-        r = client.get(f"/lists/{list_id}/cards", params=auth)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "list_cards":
+                list_id = arguments["list_id"]
+                r = client.get(f"/lists/{list_id}/cards", params=auth)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "create_card":
-        params = {**auth, "idList": arguments["list_id"], "name": arguments["name"]}
-        if arguments.get("desc"):
-            params["desc"] = arguments["desc"]
-        if arguments.get("due"):
-            params["due"] = arguments["due"]
-        r = client.post("/cards", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "create_card":
+                params = {**auth, "idList": arguments["list_id"], "name": arguments["name"]}
+                if arguments.get("desc"):
+                    params["desc"] = arguments["desc"]
+                if arguments.get("due"):
+                    params["due"] = arguments["due"]
+                r = client.post("/cards", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    elif name == "move_card":
-        card_id = arguments["card_id"]
-        params = {**auth, "idList": arguments["list_id"]}
-        r = client.put(f"/cards/{card_id}", params=params)
-        r.raise_for_status()
-        return [types.TextContent(type="text", text=json.dumps(r.json(), ensure_ascii=False, indent=2))]
+            elif name == "move_card":
+                card_id = arguments["card_id"]
+                params = {**auth, "idList": arguments["list_id"]}
+                r = client.put(f"/cards/{card_id}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
 
-    else:
-        raise ValueError(f"未知のツール: {name}")
+            else:
+                raise ValueError(f"未知のツール: {name}")
+    except Exception as exc:  # noqa: BLE001
+        return error_response(exc)
 
 
 def main():
