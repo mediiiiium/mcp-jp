@@ -1,0 +1,19 @@
+[project]
+name = "hrmos-kintai-mcp"
+version = "0.1.0"
+description = "MCP server for HRMOS勤怠（クラウド勤怠管理システム）"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+hrmos-kintai-mcp = "hrmos_kintai_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hrmos_kintai_mcp"]
