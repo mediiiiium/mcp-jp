@@ -33,6 +33,7 @@
 | `karte/` | KARTE（顧客データプラットフォーム・MA・パーソナライゼーション） | 開発中（5ツール実装済み） |
 | `akashi/` | AKASHI / マネーフォワード クラウド勤怠Plus（クラウド勤怠管理） | 開発中（5ツール実装済み） |
 | `yappli-crm/` | Yappli CRM（モバイルアプリ向けノーコードCRM・会員管理） | 開発中（5ツール実装済み） |
+| `payjp/` | PAY.JP（日本向け決済・課金サービス） | 開発中（5ツール実装済み） |
 
 ### グローバルSaaS（公式MCPなし → 独自実装）
 
@@ -91,6 +92,7 @@
 | `salesgo/` | SALES GO / GoCoo!（SFA） | ~~開発中~~ → **公式MCPあり**（日本初MCPサーバー対応SFA、2025年10月 GA）|
 | `mackerel/` | Mackerel（サーバー監視・可観測性） | ~~開発中~~ → **公式MCPあり**（mackerelio-labs/mcp-server）|
 | `gmosign/` | 電子印鑑GMOサイン（電子契約・電子署名） | ~~開発中~~ → **公式MCPあり**（GMO AI Connect、2026年秋 GA予定）|
+| `salesnow/` | SalesNow（法人企業データベース 1,400万件） | ~~開発中~~ → **公式MCPあり**（api-data.api.salesnow.jp/v1/mcp）|
 
 ## 次の候補
 
