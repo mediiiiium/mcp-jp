@@ -50,6 +50,8 @@
 | `toggl/` | Toggl Track（時間計測・工数管理） | 開発中（5ツール実装済み） |
 | `calendly/` | Calendly（スケジュール調整・予約管理） | 開発中（5ツール実装済み） |
 | `harvest/` | Harvest（時間計測・請求書・プロジェクト管理） | 開発中（5ツール実装済み） |
+| `brevo/` | Brevo（メール・SMS マーケティング） | 開発中（5ツール実装済み） |
+| `activecampaign/` | ActiveCampaign（マーケティングオートメーション・CRM） | 開発中（5ツール実装済み） |
 
 ## 次の候補
 
