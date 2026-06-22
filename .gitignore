@@ -1,4 +1,5 @@
 notes/
+scripts/
 .DS_Store
 .venv*/
 __pycache__/

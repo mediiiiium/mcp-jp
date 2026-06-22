@@ -1,113 +1,179 @@
 # mcp-jp
 
-日本SMB向け MCP サーバー集
+**日本の SMB 向け SaaS に対応した MCP サーバー集**
+
+Claude などの AI エージェントから、日本のクラウドサービスを自然言語で操作できるようにします。
+公式 MCP が存在しないサービスへのコネクタを独自実装しています。
+
+---
 
 ## コネクタ一覧
 
-### 日本SMB向けローカルSaaS（公式MCPなし → 独自実装）
+### 日本SMB向け（独自実装）
 
-| ディレクトリ | サービス | ステータス |
-|-------------|---------|-----------|
-| `lstep/` | Lステップ（LINE MA） | 開発中（API全19エンドポイント実装済み） |
-| `kingtime/` | KING OF TIME（勤怠管理） | 開発中（5ツール実装済み） |
-| `smarthr/` | SmartHR（人事・労務管理） | 開発中（5ツール実装済み） |
-| `kaonavi/` | カオナビ（タレントマネジメント） | 開発中（5ツール実装済み） |
-| `mazrica/` | Mazrica Sales（SFA・営業支援） | 開発中（5ツール実装済み） |
-| `invox/` | invox（受取請求書・仕訳エクスポート） | 開発中（5ツール実装済み） |
-| `smaregi/` | スマレジ（POSレジ・店舗管理） | 開発中（5ツール実装済み） |
-| `garoon/` | Garoon（サイボウズ グループウェア） | 開発中（5ツール実装済み） |
-| `jobcan-workflow/` | ジョブカン経費精算/ワークフロー | 開発中（5ツール実装済み） |
-| `base-ec/` | BASE（ECプラットフォーム） | 開発中（5ツール実装済み） |
-| `esa/` | esa（チームナレッジ共有） | 開発中（5ツール実装済み） |
-| `cloudsign/` | クラウドサイン（電子契約・電子署名） | 開発中（5ツール実装済み） |
-| `herp/` | HERP Hire（採用管理システム） | 開発中（5ツール実装済み） |
-| `talentio/` | Talentio（採用管理システム） | 開発中（5ツール実装済み） |
-| `lineworks/` | LINE WORKS（ビジネスチャット・グループウェア） | 開発中（5ツール実装済み）JWT認証 |
-| `board/` | board（業務・経営管理・請求書管理） | 開発中（5ツール実装済み） |
-| `jooto/` | Jooto（タスク・プロジェクト管理） | 開発中（5ツール実装済み） |
-| `hrmos-kintai/` | HRMOS勤怠（クラウド勤怠管理） | 開発中（5ツール実装済み） |
-| `misoca/` | Misoca（見積・納品・請求書サービス） | 開発中（5ツール実装済み） |
-| `makeleaps/` | MakeLeaps（請求書・見積書クラウドサービス） | 開発中（5ツール実装済み） |
-| `notepm/` | NotePM（社内wiki・ナレッジ共有・マニュアル作成） | 開発中（5ツール実装済み） |
-| `relation/` | Re:lation（メール共有・カスタマーサポート） | 開発中（5ツール実装済み） |
-| `karte/` | KARTE（顧客データプラットフォーム・MA・パーソナライゼーション） | 開発中（5ツール実装済み） |
-| `akashi/` | AKASHI / マネーフォワード クラウド勤怠Plus（クラウド勤怠管理） | 開発中（5ツール実装済み） |
-| `yappli-crm/` | Yappli CRM（モバイルアプリ向けノーコードCRM・会員管理） | 開発中（5ツール実装済み） |
-| `payjp/` | PAY.JP（日本向け決済・課金サービス） | 開発中（5ツール実装済み） |
+| コネクタ | サービス | カテゴリ |
+|---------|---------|---------|
+| [`lstep/`](./lstep/) | [Lステップ](https://liff.line.me/) | LINE マーケティング |
+| [`kingtime/`](./kingtime/) | [KING OF TIME](https://www.kingtime.jp/) | 勤怠管理 |
+| [`smarthr/`](./smarthr/) | [SmartHR](https://smarthr.jp/) | 人事・労務 |
+| [`kaonavi/`](./kaonavi/) | [カオナビ](https://kaonavi.jp/) | タレントマネジメント |
+| [`mazrica/`](./mazrica/) | [Mazrica Sales](https://mazrica.com/) | SFA |
+| [`invox/`](./invox/) | [invox](https://invox.jp/) | 受取請求書 |
+| [`smaregi/`](./smaregi/) | [スマレジ](https://smaregi.jp/) | POS・店舗管理 |
+| [`garoon/`](./garoon/) | [Garoon](https://garoon.cybozu.co.jp/) | グループウェア |
+| [`jobcan-workflow/`](./jobcan-workflow/) | [ジョブカン経費精算/ワークフロー](https://workflow.jobcan.ne.jp/) | 経費・ワークフロー |
+| [`base-ec/`](./base-ec/) | [BASE](https://thebase.com/) | EC |
+| [`esa/`](./esa/) | [esa](https://esa.io/) | チームナレッジ |
+| [`cloudsign/`](./cloudsign/) | [クラウドサイン](https://www.cloudsign.jp/) | 電子契約 |
+| [`herp/`](./herp/) | [HERP Hire](https://herp.co/) | 採用管理 |
+| [`talentio/`](./talentio/) | [Talentio](https://talentio.com/) | 採用管理 |
+| [`lineworks/`](./lineworks/) | [LINE WORKS](https://line-works.com/) | ビジネスチャット |
+| [`board/`](./board/) | [board](https://the-board.jp/) | 経営・請求書管理 |
+| [`jooto/`](./jooto/) | [Jooto](https://www.jooto.com/) | タスク・プロジェクト管理 |
+| [`hrmos-kintai/`](./hrmos-kintai/) | [HRMOS勤怠](https://ieyasu.co/) | 勤怠管理 |
+| [`misoca/`](./misoca/) | [Misoca](https://www.misoca.jp/) | 見積・請求書 |
+| [`makeleaps/`](./makeleaps/) | [MakeLeaps](https://www.makeleaps.jp/) | 請求書・見積書 |
+| [`notepm/`](./notepm/) | [NotePM](https://notepm.jp/) | 社内wiki |
+| [`relation/`](./relation/) | [Re:lation](https://ingage.jp/relation/) | CS・メール共有 |
+| [`karte/`](./karte/) | [KARTE](https://karte.io/) | MA・CDP |
+| [`akashi/`](./akashi/) | [AKASHI / MFクラウド勤怠Plus](https://ak4.jp/) | 勤怠管理 |
+| [`yappli-crm/`](./yappli-crm/) | [Yappli CRM](https://yapp.li/crm/) | モバイルCRM |
+| [`payjp/`](./payjp/) | [PAY.JP](https://pay.jp/) | 決済 |
 
-### グローバルSaaS（公式MCPなし → 独自実装）
+### グローバルSaaS（独自実装）
 
-| ディレクトリ | サービス | ステータス |
-|-------------|---------|-----------|
-| `pipedrive/` | Pipedrive（CRM・営業パイプライン管理） | 開発中（5ツール実装済み） |
-| `freshdesk/` | Freshdesk（カスタマーサポート・ヘルプデスク） | 開発中（5ツール実装済み）公式MCP EAP中 |
-| `intercom/` | Intercom（カスタマーメッセージング・CRM） | 開発中（5ツール実装済み） |
-| `trello/` | Trello（カンバン型プロジェクト管理） | 開発中（5ツール実装済み） |
-| `toggl/` | Toggl Track（時間計測・工数管理） | 開発中（5ツール実装済み） |
-| `harvest/` | Harvest（時間計測・請求書・プロジェクト管理） | 開発中（5ツール実装済み） |
-| `typeform/` | Typeform（フォーム作成・アンケート） | 開発中（5ツール実装済み） |
-| `sendgrid/` | SendGrid（メール送信・マーケティング） | 開発中（5ツール実装済み）Twilio MCP経由で部分対応 |
+| コネクタ | サービス | カテゴリ |
+|---------|---------|---------|
+| [`pipedrive/`](./pipedrive/) | [Pipedrive](https://www.pipedrive.com/) | CRM |
+| [`freshdesk/`](./freshdesk/) | [Freshdesk](https://freshdesk.com/) | カスタマーサポート |
+| [`intercom/`](./intercom/) | [Intercom](https://www.intercom.com/) | CS・メッセージング |
+| [`trello/`](./trello/) | [Trello](https://trello.com/) | プロジェクト管理 |
+| [`toggl/`](./toggl/) | [Toggl Track](https://toggl.com/) | 時間計測 |
+| [`harvest/`](./harvest/) | [Harvest](https://www.getharvest.com/) | 時間計測・請求書 |
+| [`typeform/`](./typeform/) | [Typeform](https://www.typeform.com/) | フォーム作成 |
+| [`sendgrid/`](./sendgrid/) | [SendGrid](https://sendgrid.com/) | メール配信 |
 
-### 公式MCPが存在するサービス（参考実装）
+### 公式MCPが提供されているサービス
 
-| ディレクトリ | サービス | ステータス |
-|-------------|---------|-----------|
-| `freee/` | freee会計 | ~~開発中~~ → **公式MCPあり**（2026年3月公開、270 API）|
-| `mfcloud/` | マネーフォワードクラウド | ~~開発中~~ → **公式MCPあり**（2026年3月全プラン開放）|
-| `kintone/` | kintone | ~~開発中~~ → **公式MCPあり**（2026年5月公式QSG公開）|
-| `chatwork/` | Chatwork（ビジネスチャット） | ~~開発中~~ → **公式MCPあり**（chatwork/chatwork-mcp-server）|
-| `backlog/` | Backlog（プロジェクト管理・課題追跡） | ~~開発中~~ → **公式MCPあり**（nulab/backlog-mcp-server）|
-| `sansan/` | Sansan（名刺管理・人脈管理） | ~~開発中~~ → **公式MCPあり**（2025年11月提供開始）|
-| `zendesk/` | Zendesk（カスタマーサポート） | ~~開発中~~ → **公式MCPあり**（2026年夏 GA予定）|
-| `hubspot/` | HubSpot CRM（営業・マーケティング） | ~~開発中~~ → **公式MCPあり**（mcp.hubspot.com、2026年4月 GA）|
-| `notion/` | Notion（ナレッジ管理・プロジェクト管理） | ~~開発中~~ → **公式MCPあり**（mcp.notion.com）|
-| `stripe/` | Stripe（決済・請求管理） | ~~開発中~~ → **公式MCPあり**（mcp.stripe.com）|
-| `twilio/` | Twilio（SMS・音声通話） | ~~開発中~~ → **公式MCPあり**（Twilio Alpha MCP、Public Beta）|
-| `airtable/` | Airtable（スプレッドシート型DB） | ~~開発中~~ → **公式MCPあり**（2026年2月 GA）|
-| `gitlab/` | GitLab（ソースコード管理・CI/CD） | ~~開発中~~ → **公式MCPあり**（GitLab Duo MCP、Beta）|
-| `asana/` | Asana（プロジェクト管理・タスク管理） | ~~開発中~~ → **公式MCPあり**（mcp.asana.com V2、2026年2月）|
-| `jira/` | Jira（プロジェクト管理・課題追跡） | ~~開発中~~ → **公式MCPあり**（Atlassian MCP、2026年2月 GA）|
-| `shopify/` | Shopify（ECプラットフォーム） | ~~開発中~~ → **公式MCPあり**（Storefront/Dev MCP、2026年1月〜）|
-| `mailchimp/` | Mailchimp（メールマーケティング） | ~~開発中~~ → **公式MCPあり**（Intuit/Anthropic連携、2026年春）|
-| `confluence/` | Confluence（ナレッジ管理・ドキュメント共有） | ~~開発中~~ → **公式MCPあり**（Atlassian MCP、2026年2月 GA）|
-| `square/` | Square（決済・店舗管理） | ~~開発中~~ → **公式MCPあり**（mcp.squareup.com、Beta）|
-| `box/` | Box（クラウドストレージ・ドキュメント管理） | ~~開発中~~ → **公式MCPあり**（mcp.box.com、2025年8月 GA）|
-| `zoom/` | Zoom（ビデオ会議・ウェビナー管理） | ~~開発中~~ → **公式MCPあり**（Zoom MCP、2026年4月〜）|
-| `dropbox/` | Dropbox（クラウドストレージ・ファイル共有） | ~~開発中~~ → **公式MCPあり**（mcp.dropbox.com、2026年3月 GA）|
-| `pagerduty/` | PagerDuty（インシデント管理・オンコール管理） | ~~開発中~~ → **公式MCPあり**（PagerDuty/pagerduty-mcp-server）|
-| `datadog/` | Datadog（クラウド監視・モニタリング） | ~~開発中~~ → **公式MCPあり**（datadog-labs/mcp-server、2026年3月 GA）|
-| `clickup/` | ClickUp（プロジェクト管理・タスク管理） | ~~開発中~~ → **公式MCPあり**（mcp.clickup.com、Public Beta）|
-| `calendly/` | Calendly（スケジュール調整・予約管理） | ~~開発中~~ → **公式MCPあり**（mcp.calendly.com）|
-| `brevo/` | Brevo（メール・SMS マーケティング） | ~~開発中~~ → **公式MCPあり**（mcp.brevo.com）|
-| `activecampaign/` | ActiveCampaign（マーケティングオートメーション・CRM） | ~~開発中~~ → **公式MCPあり**（mcp.activecampaign.com）|
-| `sentry/` | Sentry（エラートラッキング・パフォーマンス監視） | ~~開発中~~ → **公式MCPあり**（getsentry/sentry-mcp、mcp.sentry.dev）|
-| `heroku/` | Heroku（PaaS・アプリデプロイ管理） | ~~開発中~~ → **公式MCPあり**（heroku/heroku-mcp-server）|
-| `cloudflare/` | Cloudflare（CDN・DNS・セキュリティ管理） | ~~開発中~~ → **公式MCPあり**（cloudflare/mcp-server-cloudflare）|
-| `vercel/` | Vercel（フロントエンドデプロイ・ホスティング） | ~~開発中~~ → **公式MCPあり**（mcp.vercel.com、2025年8月〜）|
-| `circleci/` | CircleCI（CI/CD パイプライン管理） | ~~開発中~~ → **公式MCPあり**（CircleCI-Public/mcp-server-circleci）|
-| `colormeshop/` | カラーミーショップ（ECカート構築） | ~~開発中~~ → **公式MCPあり**（リモートMCPサーバー、2026年3月 GA）|
-| `zaico/` | zaico（クラウド在庫管理） | ~~開発中~~ → **公式MCPあり**（zaico MCP、2026年6月 GA）|
-| `salesforce/` | Salesforce（CRM・営業管理） | ~~開発中~~ → **公式MCPあり**（Salesforce Hosted MCP Server、2026年4月 GA）|
-| `miitel/` | MiiTel（IP電話・音声解析）| ~~開発中~~ → **公式MCPあり**（RevComm、2025年12月 Beta）|
-| `salesgo/` | SALES GO / GoCoo!（SFA） | ~~開発中~~ → **公式MCPあり**（日本初MCPサーバー対応SFA、2025年10月 GA）|
-| `mackerel/` | Mackerel（サーバー監視・可観測性） | ~~開発中~~ → **公式MCPあり**（mackerelio-labs/mcp-server）|
-| `gmosign/` | 電子印鑑GMOサイン（電子契約・電子署名） | ~~開発中~~ → **公式MCPあり**（GMO AI Connect、2026年秋 GA予定）|
-| `salesnow/` | SalesNow（法人企業データベース 1,400万件） | ~~開発中~~ → **公式MCPあり**（api-data.api.salesnow.jp/v1/mcp）|
+以下は公式 MCP サーバーが提供されているため、そちらを利用してください。
 
-## 次の候補
+| サービス | 公式MCP |
+|---------|---------|
+| [freee会計](https://www.freee.co.jp/) | 2026年3月公開（270 API） |
+| [マネーフォワードクラウド](https://biz.moneyforward.com/) | 2026年3月全プラン開放 |
+| [kintone](https://kintone.cybozu.co.jp/) | 2026年5月公式QSG公開 |
+| [Chatwork](https://go.chatwork.com/ja/) | chatwork/chatwork-mcp-server |
+| [Backlog](https://backlog.com/ja/) | nulab/backlog-mcp-server |
+| [Sansan](https://jp.sansan.com/) | 2025年11月提供開始 |
+| [Salesforce](https://www.salesforce.com/jp/) | Salesforce Hosted MCP Server（2026年4月 GA） |
+| [MiiTel](https://miitel.com/jp/) | RevComm（2025年12月 Beta） |
+| [SALES GO / GoCoo!](https://salesgo.co.jp/) | 日本初MCPサーバー対応SFA（2025年10月 GA） |
+| [カラーミーショップ](https://shop-pro.jp/) | リモートMCPサーバー（2026年3月 GA） |
+| [zaico](https://www.zaico.co.jp/) | zaico MCP（2026年6月 GA） |
+| [Mackerel](https://mackerel.io/) | mackerelio-labs/mcp-server |
+| [電子印鑑GMOサイン](https://www.gmosign.com/) | GMO AI Connect（2026年秋 GA予定） |
+| [SalesNow](https://salesnow.jp/) | api-data.api.salesnow.jp/v1/mcp |
+| [Zendesk](https://www.zendesk.co.jp/) | 2026年夏 GA予定 |
+| [HubSpot](https://www.hubspot.jp/) | mcp.hubspot.com（2026年4月 GA） |
+| [Notion](https://www.notion.com/) | mcp.notion.com |
+| [Stripe](https://stripe.com/jp) | mcp.stripe.com |
+| [Twilio](https://www.twilio.com/) | Twilio Alpha MCP（Public Beta） |
+| [Airtable](https://www.airtable.com/) | 2026年2月 GA |
+| [GitLab](https://about.gitlab.com/) | GitLab Duo MCP（Beta） |
+| [Asana](https://asana.com/ja) | mcp.asana.com V2（2026年2月） |
+| [Jira](https://www.atlassian.com/ja/software/jira) | Atlassian MCP（2026年2月 GA） |
+| [Shopify](https://www.shopify.com/jp) | Storefront/Dev MCP（2026年1月〜） |
+| [Mailchimp](https://mailchimp.com/) | Intuit/Anthropic連携（2026年春） |
+| [Confluence](https://www.atlassian.com/ja/software/confluence) | Atlassian MCP（2026年2月 GA） |
+| [Square](https://squareup.com/jp/ja) | mcp.squareup.com（Beta） |
+| [Box](https://www.box.com/ja-jp/home) | mcp.box.com（2025年8月 GA） |
+| [Zoom](https://zoom.us/) | Zoom MCP（2026年4月〜） |
+| [Dropbox](https://www.dropbox.com/ja/) | mcp.dropbox.com（2026年3月 GA） |
+| [PagerDuty](https://www.pagerduty.com/) | PagerDuty/pagerduty-mcp-server |
+| [Datadog](https://www.datadoghq.com/) | datadog-labs/mcp-server（2026年3月 GA） |
+| [ClickUp](https://clickup.com/) | mcp.clickup.com（Public Beta） |
+| [Calendly](https://calendly.com/) | mcp.calendly.com |
+| [Brevo](https://www.brevo.com/ja/) | mcp.brevo.com |
+| [ActiveCampaign](https://www.activecampaign.com/) | mcp.activecampaign.com |
+| [Sentry](https://sentry.io/) | getsentry/sentry-mcp |
+| [Heroku](https://www.heroku.com/) | heroku/heroku-mcp-server |
+| [Cloudflare](https://www.cloudflare.com/ja-jp/) | cloudflare/mcp-server-cloudflare |
+| [Vercel](https://vercel.com/) | mcp.vercel.com（2025年8月〜） |
+| [CircleCI](https://circleci.com/ja/) | CircleCI-Public/mcp-server-circleci |
 
-| サービス | カテゴリ | API状況 | 優先度 |
-|---------|---------|--------|-------|
-| CYDAS | タレントマネジメント | 要申し込み（developer.cydas.com） | 高（アカウント取得後） |
-| LetterSeal | 郵送 | 調査中 | 中 |
+---
 
-## 思想
+## セットアップ
 
-- ベンダーがMCPを出していればそれを使う
-- 日本SMBローカルのSaaSで、ベンダーが作らないものを自分たちが作る
-- Claude等のAIエージェントから日本のSaaSを操作できるようにする
-- 新しいコネクタを作る前に必ず公式MCPの有無を確認する
+### 必要なもの
 
-## 使い方
+- Python 3.10 以上
+- [Claude Desktop](https://claude.ai/download) または MCP 対応クライアント
 
-各ディレクトリのREADMEを参照。
+### インストール
+
+各コネクタは独立したパッケージです。使いたいコネクタのディレクトリで `pip install -e .` を実行します。
+
+```bash
+# 例: SmartHR コネクタをインストール
+cd smarthr
+pip install -e .
+```
+
+### Claude Desktop への設定
+
+`~/Library/Application Support/Claude/claude_desktop_config.json`（macOS）を編集します。
+
+```json
+{
+  "mcpServers": {
+    "smarthr": {
+      "command": "smarthr-mcp",
+      "env": {
+        "SMARTHR_CLIENT_ID": "your_client_id",
+        "SMARTHR_CLIENT_SECRET": "your_client_secret", # pragma: allowlist secret
+        "SMARTHR_SUBDOMAIN": "your_subdomain"
+      }
+    }
+  }
+}
+```
+
+各コネクタの詳細なセットアップ手順・必要な環境変数は、各ディレクトリの `README.md` を参照してください。
+
+---
+
+## 構造
+
+各コネクタは以下の構成で統一されています。
+
+```
+{connector}/
+├── pyproject.toml          # パッケージ設定
+├── README.md               # セットアップ手順・ツール一覧
+└── src/{connector}_mcp/
+    ├── __init__.py
+    └── server.py           # MCP サーバー実装
+```
+
+---
+
+## コントリビュート
+
+新しいコネクタのリクエストや PR を歓迎します。
+
+**コネクタ追加の前に:**
+- 対象サービスの公式 MCP が存在しないか確認してください（[公式MCP一覧](#公式mcpが提供されているサービス)を参照）
+- 公開された REST API ドキュメントが存在することを確認してください
+
+**実装のガイドライン:**
+- 1 コネクタあたり 5 つ前後のツールを実装する
+- 認証情報は環境変数で渡す
+- 各コネクタに `README.md`（セットアップ手順・ツール一覧・使用例）を含める
+- 既存のコネクタを参考にパターンを合わせる
+
+---
+
+## ライセンス
+
+[MIT License](./LICENSE)
