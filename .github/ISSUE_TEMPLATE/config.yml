@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "💬 note でのリクエスト・相談（非エンジニア歓迎）"
+    url: "https://note.com/mediiiiium"
+    about: "GitHub を使わない方は note のコメントからでも気軽にどうぞ。"
+  - name: "📦 公式 MCP があるサービスについて"
+    url: "https://github.com/mediiiiium/mcp-jp#公式mcpが提供されているサービス"
+    about: "公式 MCP が出ているサービスはそちらの利用を推奨しています。一覧はこちら。"
