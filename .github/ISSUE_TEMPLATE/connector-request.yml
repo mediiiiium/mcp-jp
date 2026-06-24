@@ -1,0 +1,39 @@
+name: "🔌 コネクタのリクエスト / Connector request"
+description: "AI から操作したいけど公式 MCP がない SaaS を教えてください。非エンジニアの方も歓迎です。"
+title: "[Request] <サービス名>"
+labels: ["connector-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        現場で使っている SaaS で「AI（Claude など）から操作できたら楽なのに、公式が対応していない」ものを教えてください。
+        需要として記録し、重なっているものから優先して実装します。**コードはこちらで書きます。** サービス名だけでも大歓迎です。
+  - type: input
+    id: service
+    attributes:
+      label: サービス名 / Service name
+      placeholder: "例: カオナビ、KING OF TIME、スマレジ"
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: 公式サイト or API ドキュメントの URL（分かれば）
+      placeholder: "https://..."
+    validations:
+      required: false
+  - type: textarea
+    id: pain
+    attributes:
+      label: どんな作業を AI に任せたいですか？ / What do you want the AI to do?
+      description: "「毎月この入力が面倒」「この情報を聞くだけで出したい」など、具体的な困りごとほど助かります。"
+      placeholder: "例: 勤怠の打刻漏れを Claude に確認してもらいたい / 請求書の一覧を聞くだけで出したい"
+    validations:
+      required: false
+  - type: checkboxes
+    id: official
+    attributes:
+      label: 確認
+      options:
+        - label: "このサービスに公式の MCP サーバーは（自分が知る限り）まだ無いと思う"
+          required: false
