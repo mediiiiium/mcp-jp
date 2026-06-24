@@ -1,4 +1,4 @@
-# mcp-jp
+# mcp-jp — Japanese SMB SaaS connectors
 
 **日本の SMB 向け SaaS に対応した MCP サーバー集**
 
