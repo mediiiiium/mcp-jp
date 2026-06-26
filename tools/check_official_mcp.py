@@ -104,7 +104,7 @@ def check_urls(rows: list[tuple[str, str]]) -> list[str]:
             continue
         req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "mcp-jp-link-check"})
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                 if resp.status >= 400:
                     problems.append(f"{name}: HTTP {resp.status} <{url}>")
         except urllib.error.HTTPError as e:
