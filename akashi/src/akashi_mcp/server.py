@@ -26,16 +26,14 @@ def _token() -> str:
 
 
 def _get(path: str, params: dict | None = None) -> dict:
-    p = params or {}
-    p["token"] = _token()
+    p = {**(params or {}), "token": _token()}
     r = httpx.get(f"{BASE_URL}{path}", params=p, timeout=30)
     r.raise_for_status()
     return r.json()
 
 
 def _post(path: str, body: dict) -> dict:
-    body["token"] = _token()
-    r = httpx.post(f"{BASE_URL}{path}", json=body, timeout=30)
+    r = httpx.post(f"{BASE_URL}{path}", json={**body, "token": _token()}, timeout=30)
     r.raise_for_status()
     return r.json()
 
@@ -134,7 +132,7 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 "start_date": arguments["start_date"],
                 "end_date": arguments["end_date"],
             }
-            if arguments.get("staff_id"):
+            if arguments.get("staff_id") is not None:
                 path = f"/{company_id}/stamps/{arguments['staff_id']}"
             else:
                 path = f"/{company_id}/stamps"

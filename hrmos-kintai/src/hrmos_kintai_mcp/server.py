@@ -31,7 +31,10 @@ def _get_token() -> str:
         timeout=30,
     )
     r.raise_for_status()
-    _token_cache = r.json()["token"]
+    token = r.json().get("token")
+    if not token:
+        raise ValueError("認証レスポンスに 'token' フィールドがありません")
+    _token_cache = token
     return _token_cache
 
 
@@ -119,7 +122,7 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     try:
         try:
             client = _client()
-        except Exception:
+        except httpx.HTTPStatusError:
             _token_cache = None
             client = _client()
 
