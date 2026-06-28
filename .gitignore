@@ -1,5 +1,6 @@
 notes/
-scripts/
+scripts/*
+!scripts/discover_candidates.py
 .DS_Store
 .venv*/
 __pycache__/
