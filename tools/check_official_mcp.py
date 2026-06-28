@@ -66,7 +66,7 @@ def parse_official_section() -> list[tuple[str, str]]:
     """README の「公式MCPが提供されているサービス」表からサービス名とURLを抽出する。"""
     text = README.read_text(encoding="utf-8")
     # 当該セクションを切り出す（次の見出し or 区切りまで）
-    m = re.search(r"###\s*公式MCP[^\n]*\n(.*?)(?:\n---|\n##\s)", text, re.S)
+    m = re.search(r"###\s*公式MCP[^\n]*\n(.*?)(?:\n---|\n##\s|\Z)", text, re.S)
     if not m:
         return []
     body = m.group(1)
@@ -148,8 +148,15 @@ def main() -> int:
     official_names_lower = [n.lower() for n, _ in official]
     for conn in active:
         alias = KNOWN_ALIASES.get(conn)
-        if alias and any(alias.lower() in on for on in official_names_lower):
-            dup.append(f"{conn} → 一覧の「{alias}」と重複（公式MCPあり）。archive/ へ退避を。")
+        if alias:
+            matched = any(alias.lower() in on for on in official_names_lower)
+            label = alias
+        else:
+            conn_normalized = conn.replace("-", " ").lower()
+            matched = any(conn_normalized in on for on in official_names_lower)
+            label = conn
+        if matched:
+            dup.append(f"{conn} → 一覧の「{label}」と重複（公式MCPあり）。archive/ へ退避を。")
     if dup:
         exit_code = 1
         print("\n[重複] ⚠️ 稼働中コネクタが公式MCP提供済みサービスと重複:")
