@@ -1,0 +1,58 @@
+name: Weekly MCP Candidate Watch
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 毎週月曜 9:00 JST (UTC 0:00)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install httpx beautifulsoup4
+
+      - name: Run discover --watch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/discover_candidates.py --watch --token "$GITHUB_TOKEN" \
+            | tee /tmp/watch_output.txt
+
+      - name: Check for tier changes
+        id: check
+        run: |
+          if grep -q "ティア変化あり" /tmp/watch_output.txt; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated state
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add notes/candidates_state.json
+          git diff --cached --quiet || git commit -m "chore(discover): weekly watch でティア更新 $(date +%Y-%m-%d)"
+          git push
+
+      - name: Create GitHub Issue
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(cat /tmp/watch_output.txt)
+          gh issue create \
+            --title "MCP候補 ティア変化 $(date +%Y-%m-%d)" \
+            --body "$BODY"
