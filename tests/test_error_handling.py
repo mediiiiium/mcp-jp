@@ -15,7 +15,8 @@ PARAMS = [pytest.param(pkg, id=name) for name, pkg in CONNECTORS]
 
 # 代表として 1 コネクタの _http を読み込む（全コネクタで内容は同一）
 _first_pkg = CONNECTORS[0][1] if CONNECTORS else None
-_http = importlib.import_module(f"{_first_pkg}._http") if _first_pkg else None
+# _first_pkg は CONNECTORS（discover() が生成した固定リスト）由来で、外部入力は混入しない。
+_http = importlib.import_module(f"{_first_pkg}._http") if _first_pkg else None  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
 
 
 @pytest.mark.skipif(_http is None, reason="コネクタ未発見")
@@ -52,7 +53,9 @@ def test_unknown_tool_returns_error_not_raise(pkg):
 
     未知ツール名なので通信は発生しない。認証情報も不要。
     """
-    server = importlib.import_module(f"{pkg}.server")
+    # pkg は _discovery.discover() がリポジトリ内のディレクトリを走査して生成した
+    # 固定リスト（PARAMS）由来で、外部・実行時入力は混入しない。
+    server = importlib.import_module(f"{pkg}.server")  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
     result = run_async(server.call_tool("__smoke_unknown_tool__", {}))
     assert isinstance(result, list) and result, "戻り値が空 / list でない"
     assert hasattr(result[0], "text"), "TextContent が返っていない"

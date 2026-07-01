@@ -34,7 +34,8 @@ def test_live_read_only(pkg, envs, tool, args):
     missing = [e for e in envs if not os.environ.get(e)]
     if missing:
         pytest.skip(f"環境変数未設定: {missing}")
-    server = importlib.import_module(f"{pkg}.server")
+    # pkg は本ファイル内にハードコードされた LIVE_CASES 由来で、外部入力は混入しない。
+    server = importlib.import_module(f"{pkg}.server")  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
     result = run_async(server.call_tool(tool, args))
     text = result[0].text
     assert "⚠️" not in text, f"{pkg}.{tool} がエラーを返した:\n{text}"
