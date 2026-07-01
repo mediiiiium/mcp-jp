@@ -31,3 +31,33 @@ python tools/check_official_mcp.py --check-urls # 公式MCPドキュメントURL
 2. 新規に公式MCPが提供されたサービスを README の一覧へ追記する。
 3. 該当する稼働コネクタがあれば `archive/` へ退避し、`KNOWN_ALIASES` に登録する。
 4. `official_mcp_state.json` の `official_list_reviewed` を当日に更新する。
+
+## check_api_sunset.py
+
+各コネクタが依存する SaaS API のバージョン廃止（sunset）を巡回チェックする。
+pipedrive で「API v1 が2025-12-31で動作保証終了」に気づかず据え置いていた事故を
+機に作成（後に v2 へ移行済み）。SaaS 側は個別に通知してくれないため、
+気づかないまま本番で動かなくなるリスクがある。33サービスの変更ログ構造はバラバラで
+自動スクレイピングは非現実的なため、全自動検出ではなく「定期的に手動で変更ログを
+確認する」ことを仕組みとして強制する棚卸しリマインダー + 判明済み sunset 日付の
+ゲートとして機能する。
+
+```bash
+python tools/check_api_sunset.py
+```
+
+- **鮮度**: `api_sunset_state.json` の各コネクタ `last_reviewed` からの経過日数。
+  120 日超で警告（ゲートではない）。
+- **記録漏れゲート**: 稼働中コネクタが `api_sunset_state.json` に未登録なら exit 1。
+  新規コネクタ追加時は `api_version`・`last_reviewed`・`sunset_date`（null可）を追記する。
+- **廃止超過ゲート**: `sunset_date` が過去日付のまま残っていたら exit 1（= 移行忘れ）。
+
+オフライン点検は `tests/test_api_sunset_check.py` 経由で CI でも自動実行される。
+
+### レビュー運用
+
+1. 半年に一度程度、`api_sunset_state.json` に載っている各コネクタの使用中APIバージョンの
+   変更ログ・非推奨告知を手動確認する（WebSearch等でサービス名 + "API deprecat" 等）。
+2. 廃止予告を見つけたら `sunset_date` に日付を記録し、移行タスクを起票する。
+3. 確認したコネクタの `last_reviewed` を当日に更新する。
+4. 実際に移行したら `api_version` を更新し、`sunset_date` を null に戻す。
