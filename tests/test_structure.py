@@ -19,7 +19,9 @@ def test_connectors_discovered():
 
 @pytest.fixture(params=PARAMS)
 def server_module(request):
-    return importlib.import_module(f"{request.param}.server")
+    # request.param は _discovery.discover() がリポジトリ内のディレクトリを走査して
+    # 生成した固定リスト由来で、外部・実行時入力は混入しない。
+    return importlib.import_module(f"{request.param}.server")  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
 
 
 def test_imports(server_module):
