@@ -50,15 +50,27 @@ LINE WORKS Developer Console でアプリを作成し、以下を取得してく
 
 | ツール名 | 説明 |
 |---------|------|
-| `list_channels` | Bot が参加しているトークルーム一覧を取得 |
-| `send_channel_message` | トークルームにメッセージを送信 |
-| `send_user_message` | ユーザーにDMを送信 |
-| `list_members` | テナントのメンバー一覧を取得 |
-| `get_member` | 特定メンバーの詳細情報を取得 |
+| `get_channel` | 指定した channel_id のトークルーム1件の情報を取得 |
+| `send_channel_message` | トークルームにテキストメッセージを送信（べき等ではない） |
+| `send_user_message` | ユーザーにテキストDMを送信（べき等ではない） |
+| `list_members` | テナントのメンバー一覧を取得（カーソルページネーション、count/order_by/sort_order/search_filter_type 対応） |
+| `get_member` | 特定メンバー（ユーザーID/ログインID/externalKey）の詳細情報を取得 |
+
+## API の既知の制限事項
+
+- **トークルーム一覧取得APIは存在しない**: LINE WORKS Bot API には「Bot が参加している全トークルームの一覧」を
+  返すエンドポイントが存在しません（公式ドキュメント・コミュニティフォーラムで確認済み）。取得できるのは
+  `GET /bots/{botId}/channels/{channelId}` による特定チャンネル1件の情報のみで、channel_id は Bot への着信
+  webhook イベントなどから事前に把握しておく必要があります（`get_channel` ツール）。
+- **メッセージの取消・編集は不可**: 送信済みメッセージを取り消す・編集するAPIはLINE WORKS Bot APIに存在しません。
+  送信はべき等ではないため、同じ内容で複数回呼び出すと重複送信されます。
+- **トークルーム作成APIは未実装**: `POST /bots/{botId}/channels`（メンバー1〜100名を指定して新規トークルーム
+  を作成）は LINE WORKS 側に存在しますが、本コネクタでは実装していません。
+- **ユーザーの作成・更新・削除APIは未実装**: 本コネクタは読み取り専用（`list_members`/`get_member`）です。
 
 ## 認証について
 
-LINE WORKS API v2 は JWT（RS256）を使った Service Account 認証を使用します。  
+LINE WORKS API v1.0 は JWT（RS256）を使った Service Account 認証を使用します。  
 秘密鍵はDeveloper Console → アプリ → 認証キー から取得・生成できます。
 
 ## 使用例

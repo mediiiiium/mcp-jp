@@ -36,11 +36,24 @@ pip install -e .
 
 | ツール名 | 説明 |
 |---------|------|
-| `track_event` | KARTE にイベントを送信してユーザー行動を記録する |
-| `get_user_events` | 指定ユーザーのイベント履歴を取得する |
-| `track_event_exec_action` | イベントを送信してサーバーサイドアクションを実行する |
-| `get_campaign` | 接客サービス（キャンペーン）の詳細情報をIDで取得する |
-| `get_campaign_stats` | 全接客サービスの設定と効果測定データを取得する |
+| `track_event` | KARTE にイベントを送信してユーザー行動を記録する（非同期・配信トリガーとしては使用不可） |
+| `get_user_events` | 指定ユーザーのイベント履歴をイベント名ごとに取得する（時刻昇順、期間・件数の絞り込み可） |
+| `track_event_exec_action` | イベントを送信し、設定済みのサーバーサイドアクションを実行する |
+| `get_campaign` | 接客サービス（キャンペーン）の詳細情報をIDで取得する（読み取り専用） |
+| `get_campaign_stats` | 全接客サービスの設定と効果測定データをCSV形式で取得する |
+
+## 既知の制約
+
+KARTE の Action API / Track API には以下のエンドポイントも存在するが、本コネクタでは読み取り中心の構成としており未実装。管理画面から操作するか、将来のバージョンでの追加を検討してください。
+
+- 接客サービス（キャンペーン）の一覧取得・新規作成(create)・更新(update)・公開/非公開切替(toggleEnabled)
+- 接客アクション（メッセージ）の作成(action/create)・更新(action/update)・単体取得(action/findById)
+- アクションテーブルのレコード追加・変更(actionTable/records/upsert)・削除(actionTable/records/delete)
+- ユーザー統計情報・セグメント所属状況の取得（POST /v2beta/track/user/get）
+- refTable（参照テーブル）行の追加・削除（POST /v2beta/track/refTable/row/upsert・delete）
+
+また `track_event` / `track_event_exec_action` の `event_name` には次の予約語が使用できない（API側の制約）：
+`page`, `req`, `enter_group`, `leave_group`, `view`, `group`, `message_send`, `date`, `message_open`, `message_click`, `message_clicked`, `message_close`
 
 ## 使用例
 

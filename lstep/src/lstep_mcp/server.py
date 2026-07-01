@@ -28,18 +28,26 @@ async def list_tools() -> list[types.Tool]:
         # ── 友だち ──
         types.Tool(
             name="list_friends",
-            description="友だち一覧を取得する（タグ・友だち情報付き）",
+            description=(
+                "友だち（LINE公式アカウントを追加したユーザー）の一覧を、付与済みタグ・友だち情報（カスタム属性）・"
+                "対応マークを展開した状態で取得する。配信対象の確認や顧客属性の棚卸しなど、全体像の把握に使う。"
+                "1回のリクエストで最大1000件まで取得可能（limit 未指定時は50件）。続きを取るには前回レスポンスの "
+                "next_cursor を cursor に渡す（cursor 未指定時は先頭から）。書き込みは行わない。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "取得件数（最大50）", "default": 50},
-                    "cursor": {"type": "string", "description": "ページネーション用カーソル"},
+                    "limit": {"type": "integer", "description": "取得件数（最大1000、既定50）", "default": 50},
+                    "cursor": {"type": "string", "description": "前回レスポンスの next_cursor を渡すとその続きから取得する"},
                 },
             },
         ),
         types.Tool(
             name="add_tag_to_friend",
-            description="特定の友だち1人にタグを追加する",
+            description=(
+                "友だち1人にタグを1件以上まとめて付与する。既に付与済みのタグIDを含めても重複エラーにはならず"
+                "無視される（べき等）。対象が複数人いる場合は bulk_add_tag を使う方が効率的。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -55,7 +63,11 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="remove_tag_from_friend",
-            description="特定の友だち1人からタグを削除する",
+            description=(
+                "友だち1人からタグを1件以上まとめて解除する。付与されていないタグIDを含めてもエラーにはならず"
+                "無視される（べき等）。対象が複数人いる場合は bulk_remove_tag を使う方が効率的。"
+                "タグそのものの削除はできない（create_tag / update_tag はあるが削除APIは提供されていない）。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -71,12 +83,15 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="set_response_mark",
-            description="友だちの対応マークを設定する",
+            description=(
+                "友だち1人の対応マーク（「対応済み」「未対応」等、問い合わせ対応状況を示す管理画面上のラベル）を"
+                "1件設定する。既存のマークは上書きされる（対応マークIDは list_taiou_marks で確認する）。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "friend_id": {"type": "string", "description": "友だちID"},
-                    "taiou_mark_id": {"type": "string", "description": "対応マークID"},
+                    "taiou_mark_id": {"type": "string", "description": "対応マークID（list_taiou_marks で取得）"},
                 },
                 "required": ["friend_id", "taiou_mark_id"],
             },
@@ -84,7 +99,10 @@ async def list_tools() -> list[types.Tool]:
         # ── 友だち情報 ──
         types.Tool(
             name="create_friend_info_folder",
-            description="友だち情報フォルダを新規作成する",
+            description=(
+                "友だち情報（友だちごとのカスタム属性項目）を整理するためのフォルダを新規作成する。"
+                "作成できるのみで、削除・更新のAPIは提供されていない。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -95,12 +113,16 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="create_friend_info",
-            description="友だち情報（カスタム属性項目）を新規作成する",
+            description=(
+                "友だち情報（例: 誕生日、購入回数など友だちごとに値が異なるカスタム属性項目）の定義を新規作成する。"
+                "ここで作るのは項目の定義であり、個々の友だちへの値の設定は別途行う必要がある（本コネクタには"
+                "友だちごとの値設定・削除ツールは未実装）。folder_id を省略すると未分類フォルダに入る。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "友だち情報名"},
-                    "folder_id": {"type": "string", "description": "格納先フォルダID"},
+                    "folder_id": {"type": "string", "description": "格納先フォルダID（省略時は未分類）"},
                     "type": {
                         "type": "string",
                         "description": "データ型（text / number / date 等）",
@@ -112,12 +134,12 @@ async def list_tools() -> list[types.Tool]:
         # ── タグ ──
         types.Tool(
             name="list_tag_folders",
-            description="タグフォルダ一覧を取得する",
+            description="タグフォルダの一覧を取得する。ページネーションなし（全件を一度に返す）。",
             inputSchema={"type": "object", "properties": {}},
         ),
         types.Tool(
             name="create_tag_folder",
-            description="タグフォルダを新規作成する",
+            description="タグフォルダを新規作成する。削除・更新のAPIは提供されていない。",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -128,55 +150,68 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="list_tags",
-            description="タグ一覧を取得する",
+            description=(
+                "登録済みタグの一覧を、タグID・名前・所属フォルダとともに取得する。友だちへの付与・解除の前に"
+                "タグIDを確認する目的で使うことが多い。1回のリクエストで最大1000件（既定50件）。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "取得件数（最大50）", "default": 50},
+                    "limit": {"type": "integer", "description": "取得件数（最大1000、既定50）", "default": 50},
                 },
             },
         ),
         types.Tool(
             name="create_tag",
-            description="新しいタグを作成する",
+            description="新しいタグを作成する。folder_id を省略すると未分類フォルダに入る。削除APIは提供されていない。",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "タグ名"},
-                    "folder_id": {"type": "string", "description": "格納先フォルダID"},
+                    "folder_id": {"type": "string", "description": "格納先フォルダID（省略時は未分類）"},
                 },
                 "required": ["name"],
             },
         ),
         types.Tool(
             name="update_tag",
-            description="既存タグの名前・フォルダを更新する",
+            description=(
+                "既存タグの名前・所属フォルダを部分更新する（name・folder_id とも省略した項目は変更されない）。"
+                "タグ自体の削除はできない（削除APIが提供されていないため）。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "tag_id": {"type": "string", "description": "更新するタグID"},
-                    "name": {"type": "string", "description": "新しいタグ名"},
-                    "folder_id": {"type": "string", "description": "移動先フォルダID"},
+                    "name": {"type": "string", "description": "新しいタグ名（省略時は変更しない）"},
+                    "folder_id": {"type": "string", "description": "移動先フォルダID（省略時は変更しない）"},
                 },
                 "required": ["tag_id"],
             },
         ),
         types.Tool(
             name="list_friends_by_tag",
-            description="指定タグを持つ友だち一覧を取得する",
+            description=(
+                "指定タグが付与されている友だちの一覧を取得する。「このタグの対象者に一斉送信したい」"
+                "「セグメント人数を確認したい」といった場面で使う。ページネーションはカーソル方式："
+                "続きを取るには前回レスポンスの next_cursor を cursor に渡す。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "tag_id": {"type": "string", "description": "タグID"},
-                    "limit": {"type": "integer", "description": "取得件数（最大50）", "default": 50},
-                    "cursor": {"type": "string", "description": "ページネーション用カーソル"},
+                    "limit": {"type": "integer", "description": "取得件数（最大1000、既定50）", "default": 50},
+                    "cursor": {"type": "string", "description": "前回レスポンスの next_cursor を渡すとその続きから取得する"},
                 },
                 "required": ["tag_id"],
             },
         ),
         types.Tool(
             name="bulk_add_tag",
-            description="複数の友だちに一括でタグを付与する",
+            description=(
+                "1件のタグを複数の友だちへ一括付与する。既に付与済みの友だちが含まれていてもエラーにはならず"
+                "無視される（べき等）。対象が1人だけなら add_tag_to_friend の方がシンプル。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -192,7 +227,10 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="bulk_remove_tag",
-            description="複数の友だちから一括でタグを削除する",
+            description=(
+                "1件のタグを複数の友だちから一括解除する。付与されていない友だちが含まれていてもエラーにはならず"
+                "無視される（べき等）。対象が1人だけなら remove_tag_from_friend の方がシンプル。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -209,45 +247,79 @@ async def list_tools() -> list[types.Tool]:
         # ── 対応マーク ──
         types.Tool(
             name="list_taiou_marks",
-            description="対応マーク一覧を取得する",
+            description=(
+                "対応マーク（問い合わせ対応状況を示す管理画面上のラベル。例: 対応済み/未対応）の一覧をIDと"
+                "名前付きで取得する。set_response_mark に渡す taiou_mark_id を調べる目的で使う。"
+                "ページネーションなし（全件を一度に返す）。"
+            ),
             inputSchema={"type": "object", "properties": {}},
         ),
         # ── メッセージ ──
         types.Tool(
             name="get_message_history",
-            description="メッセージ履歴を取得する",
+            description=(
+                "友だちとのLINEメッセージ履歴（受信・送信・システムメッセージ）を検索・取得する。"
+                "既定では送信日時の新しい順（sort_order=desc）に返る。特定の友だちとのやり取りだけを見たい場合は"
+                "friend_id を指定する。期間で絞り込むには sent_at_from / sent_at_to（ISO 8601形式）を使う。"
+                "1回のリクエストで最大1000件（既定50件）。続きを取るには前回レスポンスの next_cursor を "
+                "cursor に渡す（このエンドポイントは前ページへの遡り取得には対応していない）。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "取得件数（最大50）", "default": 50},
-                    "cursor": {"type": "string", "description": "ページネーション用カーソル"},
+                    "limit": {"type": "integer", "description": "取得件数（最大1000、既定50）", "default": 50},
+                    "cursor": {"type": "string", "description": "前回レスポンスの next_cursor を渡すとその続きから取得する"},
+                    "friend_id": {"type": "string", "description": "この友だちとのメッセージのみに絞り込む"},
                     "direction": {
                         "type": "string",
                         "enum": ["inbound", "outbound", "system"],
-                        "description": "メッセージ方向（受信/送信/システム）",
+                        "description": "メッセージ方向で絞り込む（inbound=友だちからの受信 / outbound=こちらからの送信 / system=システム通知）",
                     },
+                    "sent_at_from": {"type": "string", "description": "送信日時の範囲開始（ISO 8601形式、例: 2026-06-01T00:00:00+09:00）"},
+                    "sent_at_to": {"type": "string", "description": "送信日時の範囲終了（ISO 8601形式）"},
+                    "sort_order": {
+                        "type": "string",
+                        "enum": ["asc", "desc"],
+                        "description": "送信日時での並び順（既定 desc=新しい順）",
+                        "default": "desc",
+                    },
+                    "is_unconfirmed": {"type": "boolean", "description": "true の場合、未読メッセージのみに絞り込む"},
                 },
             },
         ),
         # ── 共通情報 ──
         types.Tool(
             name="list_common_info_folders",
-            description="共通情報フォルダ一覧を取得する",
+            description=(
+                "共通情報フォルダの一覧を取得する（共通情報とは何かは list_common_infos の説明を参照）。"
+                "ページネーションなし（全件を一度に返す）。id が null の要素は未分類フォルダを表す。"
+            ),
             inputSchema={"type": "object", "properties": {}},
         ),
         types.Tool(
             name="list_common_infos",
-            description="共通情報一覧を取得する",
+            description=(
+                "共通情報（特定の友だちに紐づかず、アカウント全体で共有される固定値。例: 営業時間・定休日・"
+                "問い合わせ先URLなど）の一覧を取得する。友だち情報（friend_info、友だちごとに値が異なる属性）とは"
+                "別物。各要素は配信テンプレートやメッセージ本文からショートコード（shortcode_id）経由で差し込める。"
+                "folder_id を指定するとそのフォルダ内のみに絞り込み、null を指定すると未分類フォルダのみになる。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "取得件数（最大50）", "default": 50},
+                    "limit": {"type": "integer", "description": "取得件数（最大1000、既定50）", "default": 50},
+                    "cursor": {"type": "string", "description": "前回レスポンスの next_cursor を渡すとその続きから取得する"},
+                    "folder_id": {"type": "string", "description": "絞り込み対象のフォルダID（省略時は全フォルダ、null 指定で未分類のみ）"},
                 },
             },
         ),
         types.Tool(
             name="update_common_info",
-            description="共通情報の値を更新する",
+            description=(
+                "共通情報（アカウント全体で共有される固定値。list_common_infos 参照）1件の値を更新する。"
+                "反映後は、そのショートコードを使っている配信テンプレート・メッセージにも新しい値が反映される。"
+                "共通情報の新規作成・削除のAPIは提供されていない。"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -351,8 +423,18 @@ def _dispatch(name: str, arguments: dict) -> list[types.TextContent]:
             params = {"limit": arguments.get("limit", 50)}
             if cursor := arguments.get("cursor"):
                 params["cursor"] = cursor
+            if friend_id := arguments.get("friend_id"):
+                params["friend_id"] = friend_id
             if direction := arguments.get("direction"):
                 params["direction"] = direction
+            if sent_at_from := arguments.get("sent_at_from"):
+                params["sent_at_from"] = sent_at_from
+            if sent_at_to := arguments.get("sent_at_to"):
+                params["sent_at_to"] = sent_at_to
+            if sort_order := arguments.get("sort_order"):
+                params["sort_order"] = sort_order
+            if "is_unconfirmed" in arguments:
+                params["is_unconfirmed"] = arguments["is_unconfirmed"]
             r = client.get("/messages", params=params)
 
         # ── 共通情報 ──
@@ -360,7 +442,12 @@ def _dispatch(name: str, arguments: dict) -> list[types.TextContent]:
             r = client.get("/common-info-folders")
 
         elif name == "list_common_infos":
-            r = client.get("/common-infos", params={"limit": arguments.get("limit", 50)})
+            params = {"limit": arguments.get("limit", 50)}
+            if cursor := arguments.get("cursor"):
+                params["cursor"] = cursor
+            if "folder_id" in arguments:
+                params["folder_id"] = arguments["folder_id"]
+            r = client.get("/common-infos", params=params)
 
         elif name == "update_common_info":
             common_info_id = arguments["common_info_id"]
