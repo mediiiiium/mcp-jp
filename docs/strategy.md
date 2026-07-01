@@ -101,7 +101,20 @@ OSS をリード獲得の入口にするため、MCP の掲載ディレクトリ
 - **PulseMCP** — 直接フォーム登録は廃止され、現在は「Official MCP Registry に publish → 毎日取り込み」
   か「`hello@pulsemcp.com` にメール依頼」の2択。Official Registry は 1 サーバー＝1 `server.json` 前提で
   モノレポと噛み合わないため（smithery と同じ壁）、メールで「リポジトリを1エントリとして掲載」を依頼（2026-06 送信済み・返信待ち）。
-- **glama.ai** — `awesome-mcp-servers` への掲載（PR #8647）から自動同期される。
+- **glama.ai** — 当初「`awesome-mcp-servers` への掲載（PR #8647）から自動同期される」と想定していたが、
+  実際は**逆順**だった（2026-07 判明）。awesome へ PR を出すと glama-check bot が
+  「(1) glama.ai に submit し Dockerfile でチェック通過 → (2) スコアバッジを PR に追記」を要求し、
+  これを満たさないとマージされない。チェック条件は「Dockerfile でサーバーが**起動し introspection
+  (`tools/list`) に応答**」のみで、実 API 疎通は不要。各コネクタの `list_tools()` は認証情報未設定でも
+  ツール一覧を静的に返す設計のため、環境変数無しで introspection が通る。
+  Glama はモノレポの各サブディレクトリを別サーバーとして個別登録できるため、smithery のような
+  モノレポの壁には当たらない（ただし公式提出フォームに GitHub リポジトリ URL しか入力欄がなく、
+  サブディレクトリ指定はできないため、Description 欄に対象サブディレクトリと Dockerfile の場所を
+  明記して手動レビューでの認識に委ねる運用）。
+  → 全 33 コネクタに Dockerfile 作成済み、`glama.json`（maintainers）追加済み。
+  まず `akashi` 1件のみ試験的に submit 済み（2026-07・審査待ち）。
+  残タスク: akashi の審査結果（モノレポのサブディレクトリが正しく個別サーバーとして認識されるか）を
+  確認してから、残り 31 コネクタを同様に submit → 全件通過後にバッジを PR #8647 に追記。
 - **smithery.ai は見送り（2026-06 判断）。** smithery は「1 リポジトリ = すぐ動かせる 1 サーバー」を
   前提とするが、mcp-jp は独立 pip パッケージのモノレポで噛み合わない。露出は上記 3 つで十分なため、
   構造を smithery 向けに作り替えるコストは見合わないと判断。将来 smithery がモノレポ対応したら再検討。
