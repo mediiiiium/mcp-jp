@@ -1,4 +1,5 @@
-notes/
+notes/*
+!notes/candidates_state.json
 scripts/*
 !scripts/discover_candidates.py
 .DS_Store

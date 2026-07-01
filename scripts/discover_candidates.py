@@ -83,6 +83,53 @@ GLOBAL_GIANTS = {
     "adobe", "servicenow", "freshworks", "freshworks",
 }
 
+# 自社が既に実装済みのコネクタが対象とするドメイン（各 server.py の実 API ドメインから抽出）。
+# mcp_exists() は GitHub 検索で「<サービス名> mcp」に一致するリポジトリしか見ないため、
+# モノレポの説明文にサービス名が出てこない自社コネクタ自身を見逃す（kingtime/mazrica で確認済みの誤検知）。
+# ドメイン一致でここを補完し、Tier1 への混入を防ぐ。新規コネクタ追加時はここにも追記する。
+IMPLEMENTED_DOMAINS = {
+    "ak4.jp",            # akashi
+    "thebase.in",        # base-ec
+    "the-board.jp",      # board
+    "cloudsign.jp",      # cloudsign
+    "esa.io",            # esa
+    "freshdesk.com",     # freshdesk
+    "cybozu.com",        # garoon
+    "harvestapp.com",    # harvest
+    "herp.cloud",        # herp
+    "ieyasu.co",         # hrmos-kintai
+    "intercom.io",       # intercom
+    "invox.jp",          # invox
+    "jobcan.jp",         # jobcan-workflow
+    "jooto.com",         # jooto
+    "kaonavi.jp",        # kaonavi
+    "karte.io",          # karte
+    "kingtime.jp",       # kingtime
+    "worksmobile.com",   # lineworks
+    "worksapis.com",     # lineworks
+    "lineml.jp",         # lstep
+    "makeleaps.com",     # makeleaps
+    "mazrica.com",       # mazrica
+    "misoca.jp",         # misoca
+    "notepm.jp",         # notepm
+    "pay.jp",            # payjp
+    "pipedrive.com",     # pipedrive
+    "relationapp.jp",    # relation
+    "sendgrid.com",      # sendgrid
+    "smaregi.jp",        # smaregi
+    "smarthr.jp",        # smarthr
+    "talentio.com",      # talentio
+    "toggl.com",         # toggl
+    "trello.com",        # trello
+    "typeform.com",      # typeform
+}
+
+
+def is_implemented_domain(domain: str) -> bool:
+    if not domain:
+        return False
+    return any(domain == d or domain.endswith("." + d) for d in IMPLEMENTED_DOMAINS)
+
 # API硬判定に使う本文キーワード（lowercase照合）。openapi/swagger/oauth は単独で強い。
 API_STRONG = ("openapi", "swagger", "oauth", "access token", "アクセストークン")
 API_WEAK = (
@@ -97,6 +144,8 @@ RISK_THRESHOLD = 40
 STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md")
 ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
+# フルスキャンで新規に Tier1 入りした候補の一覧（CI が読んで Issue 化する）。state と違いコミットしない一時ファイル。
+NEW_TIER1_PATH = os.path.join(os.path.dirname(__file__), "../notes/new_tier1_candidates.json")
 
 
 def load_dotenv():
@@ -127,6 +176,7 @@ class Signals:
     ecosystem_hits: int | None = None   # 「<名前> 代理店/構築」検索ヒット数（弱い代理指標）
     mcp_exists: bool = False
     mcp_url: str = ""
+    self_implemented: bool = False      # 自社の既存コネクタと同一ドメイン（IMPLEMENTED_DOMAINS 一致）
     official_ship_risk: int = 0         # 0-100。高いほど公式が出しそう＝降格
 
 
@@ -327,8 +377,8 @@ def score_official_risk(sig: Signals) -> int:
 
 
 def assign_tier(sig: Signals) -> str:
-    if sig.mcp_exists:
-        return "deprecate"          # 既にMCPあり → 使う側に回す
+    if sig.mcp_exists or sig.self_implemented:
+        return "deprecate"          # 既にMCPあり（自社実装含む） → 使う側に回す
     if not sig.api_hard:
         return "Tier3"              # API実在が硬く確認できない
     if sig.global_giant:
@@ -347,10 +397,11 @@ def evaluate(svc: dict, token: str, with_ecosystem: bool = True) -> dict:
     sig = detect_api(domain)
     sig.mcp_exists = has_mcp
     sig.mcp_url = mcp_url
+    sig.self_implemented = is_implemented_domain(domain)
     sig.global_giant = any(g in domain for g in GLOBAL_GIANTS)
 
     # 利用者規模は Tier1 候補の優先度づけにしか使わないので、API硬判定◯のときだけ取る
-    if with_ecosystem and sig.api_hard and not has_mcp and not sig.global_giant:
+    if with_ecosystem and sig.api_hard and not has_mcp and not sig.self_implemented and not sig.global_giant:
         sig.ecosystem_hits = ecosystem_signal(name)
 
     sig.official_ship_risk = score_official_risk(sig)
@@ -407,6 +458,8 @@ def write_markdown(candidates: list[dict]):
             note = []
             if sig.get("mcp_exists"):
                 note.append("MCP既存")
+            if sig.get("self_implemented"):
+                note.append("自社実装済み")
             if sig.get("english_docs"):
                 note.append("英語doc")
             if sig.get("has_openapi"):
@@ -449,6 +502,7 @@ def load_state() -> dict:
 
 def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int | None = None):
     print("=== MCP候補 スキャン ===\n")
+    prev_state = load_state()
     candidates: list[dict] = []
 
     cats = CATEGORIES
@@ -477,11 +531,26 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
     write_markdown(candidates)
     save_state(candidates)
 
+    # 新規Tier1検出: 前回 state で Tier1 でなかった（＝存在しなかった、または下位ティアだった）ものだけを拾う。
+    # これが「候補が湧いたら開発にパスする」導線のトリガーになる。
+    new_tier1 = [
+        c for c in candidates
+        if c["tier"] == "Tier1" and prev_state.get(c["name"], {}).get("tier") != "Tier1"
+    ]
+    with open(NEW_TIER1_PATH, "w", encoding="utf-8") as f:
+        json.dump(new_tier1, f, ensure_ascii=False, indent=2)
+
     counts = {t: sum(1 for c in candidates if c["tier"] == t) for t in TIER_ORDER}
     print(f"\n完了: Tier1={counts['Tier1']} / Tier2={counts['Tier2']} "
           f"/ Tier3={counts['Tier3']} / deprecate={counts['deprecate']}")
     print(f"  → {OUT_PATH}")
     print(f"  → {STATE_PATH}")
+    if new_tier1:
+        print(f"\n新規Tier1候補: {len(new_tier1)}件")
+        for c in new_tier1:
+            print(f"  - {c['name']} ({c['category']})")
+    else:
+        print("\n新規Tier1候補: なし")
 
 
 # ── ウォッチャー（差分のみ再評価） ────────────────────────────
