@@ -52,7 +52,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh label create candidate --description "MCP開発候補（discover_candidates.py が検出）" --color "1D76DB" --force
           BODY=$(cat /tmp/watch_output.txt)
           gh issue create \
             --title "MCP候補 ティア変化 $(date +%Y-%m-%d)" \
+            --label "candidate" \
             --body "$BODY"
