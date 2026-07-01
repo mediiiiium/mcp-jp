@@ -1,11 +1,12 @@
 # pipedrive MCP server — Glama introspection check 用 Dockerfile
 #
 # Glama のチェックは「起動して introspection (tools/list) に応答」できればよい。
-# list_tools() は PIPEDRIVE_API_TOKEN 未設定でも 5 ツールを返すため、環境変数無しでも通る。
-# 実運用でツールを呼ぶ際は PIPEDRIVE_API_TOKEN を環境変数で渡すこと。
+# list_tools() は PIPEDRIVE_API_TOKEN,PIPEDRIVE_COMPANY_DOMAIN 未設定でも 5 ツールを返すため、
+# 環境変数無しでも通る。実運用でツールを呼ぶ際は PIPEDRIVE_API_TOKEN,PIPEDRIVE_COMPANY_DOMAIN を
+# 環境変数で渡すこと。
 #
 # ビルド: docker build -t pipedrive-mcp .（このディレクトリで実行）
-# 実行:   docker run -i --rm -e PIPEDRIVE_API_TOKEN=xxx pipedrive-mcp
+# 実行:   docker run -i --rm -e PIPEDRIVE_API_TOKEN=xxx -e PIPEDRIVE_COMPANY_DOMAIN=xxx pipedrive-mcp
 
 FROM python:3.12-slim
 
