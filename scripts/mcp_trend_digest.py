@@ -4,7 +4,7 @@ MCPエコシステム動向ウォッチャー
 
 週次でMCPエコシステムの新着情報を6ソースから収集し、前回実行との差分を
 notes/mcp_trend_state.json で検出、新着分だけを Markdown ダイジェスト
-（notes/mcp_trend_digest.md）にまとめる。仕様の背景は docs/mcp-trend-digest.md 参照。
+（notes/mcp_trend_digest.md）にまとめる。仕様の背景は docs/x-trend-digest.md 参照。
 
 収集ソース:
   1. GitHub topic検索      … topic:mcp-server / topic:model-context-protocol の新着リポジトリ
