@@ -10,3 +10,8 @@ dist/
 build/
 __pycache__/
 *.min.js
+
+# vauban 生成の Semgrep ワークフロー自身。first-party の GitHub 公式 action を
+# @tag で参照するため mutable-action-tag が出るが、setup.sh が生成する成果物であり
+# ここで pin しても再生成で戻る。生成物なのでスキャン対象から除外する。
+.github/workflows/semgrep.yml
