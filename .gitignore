@@ -1,7 +1,9 @@
 notes/*
 !notes/candidates_state.json
+!notes/mcp_trend_state.json
 scripts/*
 !scripts/discover_candidates.py
+!scripts/mcp_trend_digest.py
 .DS_Store
 .venv*/
 __pycache__/
