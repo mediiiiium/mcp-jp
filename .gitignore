@@ -1,13 +1,9 @@
 notes/*
 !notes/candidates_state.json
 !notes/mcp_trend_state.json
-!notes/tips_backlog_state.json
-!notes/release_announced_state.json
 scripts/*
 !scripts/discover_candidates.py
 !scripts/mcp_trend_digest.py
-!scripts/tips_backlog.py
-!scripts/release_draft.py
 .DS_Store
 .venv*/
 __pycache__/
