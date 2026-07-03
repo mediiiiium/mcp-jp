@@ -1,3 +1,4 @@
+import base64
 import os
 import httpx
 from mcp.server import Server
@@ -329,6 +330,45 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["common_info_id", "value"],
             },
         ),
+        # ── テンプレート ──
+        types.Tool(
+            name="list_templates",
+            description=(
+                "配信テンプレート（あらかじめ管理画面で作成されたメッセージひな形）の一覧をID・名前・"
+                "所属フォルダとともに取得する。取得のみで、テンプレートを使った配信の実行やテンプレート自体の"
+                "作成・更新・削除のAPIは提供されていない（既存のテンプレート構成を確認する用途に限られる）。"
+                "1回のリクエストで最大1000件まで取得可能（limit 未指定時は50件）。続きを取るには前回レスポンスの "
+                "next_cursor を cursor に渡す。folder_id を指定するとそのフォルダ内のみに絞り込む。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "取得件数（最大1000、既定50）", "default": 50},
+                    "cursor": {"type": "string", "description": "前回レスポンスの next_cursor を渡すとその続きから取得する"},
+                    "folder_id": {"type": "string", "description": "絞り込み対象のフォルダID（省略時は全フォルダ）"},
+                },
+            },
+        ),
+        # ── メディア ──
+        types.Tool(
+            name="upload_media",
+            description=(
+                "画像ファイルをLステップの登録メディア一覧にアップロードする（現状 API 経由で指定できる種別は "
+                "image のみ）。対応形式は jpg / png / gif、最大10MB。file にはファイルパスではなく画像データを "
+                "base64エンコードした文字列を渡す（このコネクタ側でデコードして multipart/form-data 送信する）。"
+                "アップロードされたメディアは管理画面上でメッセージ・テンプレートの画像として利用できるようになる。"
+                "登録のみ可能で、一覧取得・削除のAPIは提供されていない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file_base64": {"type": "string", "description": "アップロードする画像データ（base64エンコード済み）"},
+                    "filename": {"type": "string", "description": "ファイル名（拡張子込み。例: photo.jpg）"},
+                    "name": {"type": "string", "description": "メディア名（1〜255文字、省略可）"},
+                },
+                "required": ["file_base64", "filename"],
+            },
+        ),
     ]
 
 
@@ -452,6 +492,24 @@ def _dispatch(name: str, arguments: dict) -> list[types.TextContent]:
         elif name == "update_common_info":
             common_info_id = arguments["common_info_id"]
             r = client.post(f"/common-infos/{common_info_id}", json={"value": arguments["value"]})
+
+        # ── テンプレート ──
+        elif name == "list_templates":
+            params = {"limit": arguments.get("limit", 50)}
+            if cursor := arguments.get("cursor"):
+                params["cursor"] = cursor
+            if "folder_id" in arguments:
+                params["folder_id"] = arguments["folder_id"]
+            r = client.get("/templates", params=params)
+
+        # ── メディア ──
+        elif name == "upload_media":
+            file_bytes = base64.b64decode(arguments["file_base64"])
+            data = {"type": "image"}
+            if media_name := arguments.get("name"):
+                data["name"] = media_name
+            files = {"file": (arguments["filename"], file_bytes)}
+            r = client.post("/media", data=data, files=files)
 
         else:
             raise ValueError(f"未知のツール: {name}")
