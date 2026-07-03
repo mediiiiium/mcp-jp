@@ -141,6 +141,35 @@ API_WEAK = (
 # 公式が出しそう確度のしきい値。これ以上なら Tier2（スタンバイ）へ。
 RISK_THRESHOLD = 40
 
+# 2026-07-03 セッションで Tier1候補7件中6件が誤検知と判明（notes/candidates_state.json 参照）。
+# 共通パターンは「本文にキーワードは含まれるが、実際に着地したページはdevdocsではない」:
+#   (a) マーケティングTOPへのリダイレクト（CC-BizMate/Ligla/ソーシャルPLUS）
+#   (b) SSO/認証ウォールへのリダイレクト（SendWOW = Cloudflare Access）
+#   (c) キーワードが偶然含まれるだけの無関係記事（NetBot=API解説ブログ、Proflly=無関係な告知ページ）
+# これを踏まえ、「キーワード一致」だけでなく「着地URLが本物のdevdocsか」「構造的な証拠があるか」を追加で見る。
+
+# SSO/認証ウォールとして知られるドメイン・パスの部分文字列。
+# ここに着地した＝公開ドキュメントではなくログイン必須の非公開リソース、という強い陰性シグナル。
+AUTH_WALL_MARKERS = (
+    "cloudflareaccess.com", "/cdn-cgi/access/login", "/cdn-cgi/access",
+    "auth0.com", "okta.com", "/sso", "/login", "/signin", "/sign-in",
+)
+
+# マーケティングTOP（ホームページ）へのリダイレクトとみなすパス。
+# ルート直下 or よくあるトップページ相当のスラッグのみで、developers/api 等の実体が伴わない場合。
+HOMEPAGE_LIKE_PATHS = ("", "/", "/index", "/index.html", "/home", "/top")
+
+# 構造的証拠: 単発キーワードより信頼できる「本物のAPI docsらしさ」のシグナル。
+# コードブロック、curl例、HTTPメソッド+パスの組、OpenAPI/Swaggerの実ファイルなど。
+STRUCTURAL_PATTERNS = (
+    re.compile(r"<pre[^>]*>|<code[^>]*>"),                       # コードブロック
+    re.compile(r"\bcurl\s+-"),                                    # curl 実行例
+    re.compile(r"\b(GET|POST|PUT|DELETE|PATCH)\s+/\S+"),          # HTTPメソッド + パス
+    re.compile(r"\"openapi\"\s*:\s*\"3"),                          # OpenAPI 3.x JSON
+    re.compile(r"^openapi:\s*3", re.MULTILINE),                    # OpenAPI 3.x YAML
+    re.compile(r"\"swagger\"\s*:\s*\"2"),                          # Swagger 2.0 JSON
+)
+
 STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md")
 ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
@@ -261,8 +290,53 @@ def _japanese_ratio(text: str) -> float:
     return jp / letters if letters else 0.0
 
 
+def _is_redirect_to_homepage(requested_url: str, final_url: str) -> bool:
+    """「/developers」等の意味あるパスを叩いたのに、リダイレクトの結果パスが
+    消えてTOP相当になっていないかを判定する。
+
+    元々パスの無いURL（https://developers.{d} のような devサブドメイン直下）は対象外――
+    これは正規のdevdocsの置き方として普通にありうるので誤爆させない。
+    見るのは「意味のあるパスを要求したのに、そのパスが失われたか」だけ。
+    CC-BizMate・Ligla・ソーシャルPLUSは、/developers等を要求してTOPへ302/301されていた。
+    """
+    try:
+        req_path = urlparse(requested_url).path.rstrip("/")
+        final_path = urlparse(final_url).path.rstrip("/")
+    except Exception:
+        return False
+    requested_meaningful_path = req_path not in HOMEPAGE_LIKE_PATHS
+    final_lost_path = final_path in HOMEPAGE_LIKE_PATHS
+    return requested_meaningful_path and final_lost_path
+
+
+def _is_auth_wall(final_url: str) -> bool:
+    """最終着地URLがSSO/ログインウォールかを判定する（Cloudflare Access等）。
+
+    公開されたAPIドキュメントではなく、ログインしないと中身が見えない非公開リソース。
+    SendWOW（Cloudflare Access）で確認された誤検知パターン。
+    """
+    lower = final_url.lower()
+    return any(marker in lower for marker in AUTH_WALL_MARKERS)
+
+
+def _has_structural_evidence(raw_html: str, body_lower: str) -> bool:
+    """単発キーワードより強い「本物のAPI docsらしさ」の構造的証拠があるか。
+
+    コードブロック/curl例/HTTPメソッド+パス/OpenAPI実体のいずれかがあれば、
+    無関係な記事にキーワードが偶然含まれているだけ、という誤検知を減らせる。
+    """
+    return any(p.search(raw_html) or p.search(body_lower) for p in STRUCTURAL_PATTERNS)
+
+
 def detect_api(domain: str) -> Signals:
-    """APIドキュメントを硬く判定する。URL 200では不十分なので本文の中身を見る。"""
+    """APIドキュメントを硬く判定する。URL 200では不十分なので本文の中身を見る。
+
+    2026-07-03時点の追加チェック（誤検知6/7を受けての改修）:
+      1. リダイレクトを追跡し、最終URLがマーケティングTOP相当なら不採用（強い陰性）
+      2. 最終URLがSSO/認証ウォール（Cloudflare Access等）なら不採用（非公開リソース）
+      3. キーワード一致に加えて構造的証拠（コード例・OpenAPI実体等）を要求する。
+         強キーワード（openapi/swagger/oauth等）単体では採用せず、必ず構造的証拠と併せて判定する。
+    """
     sig = Signals()
     if not domain:
         return sig
@@ -276,6 +350,15 @@ def detect_api(domain: str) -> Signals:
         if r.status_code >= 400:
             continue
 
+        final_url = str(r.url)
+
+        # 陰性シグナル1: マーケティングTOPへのリダイレクト（devdocsの実体なし）
+        if _is_redirect_to_homepage(url, final_url):
+            continue
+        # 陰性シグナル2: SSO/認証ウォール（公開ドキュメントではない）
+        if _is_auth_wall(final_url):
+            continue
+
         body = r.text.lower()
         evidence = []
         if any(k in body for k in API_STRONG):
@@ -283,23 +366,30 @@ def detect_api(domain: str) -> Signals:
         weak_hits = [k for k in API_WEAK if k in body]
         evidence += weak_hits
 
-        # 硬判定: 強キーワード1つ or 弱キーワード2つ以上
         strong_hit = any(k in body for k in API_STRONG)
-        if strong_hit or len(weak_hits) >= 2:
-            sig.api_hard = True
-            sig.api_url = url
-            sig.api_evidence = evidence[:6]
-            sig.has_openapi = ("openapi" in body) or ("swagger" in body)
-            # 英語doc判定: html lang か 本文の日本語率
-            lang = ""
-            m = re.search(r'<html[^>]*\blang=["\']?([a-zA-Z-]+)', r.text)
-            if m:
-                lang = m.group(1).lower()
-            text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
-            sig.english_docs = lang.startswith("en") or (
-                len(text) > 500 and _japanese_ratio(text) < 0.02
-            )
-            return sig
+        keyword_hard = strong_hit or len(weak_hits) >= 2
+        if not keyword_hard:
+            continue
+
+        # 構造的証拠を要求: キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
+        # （NetBotの「APIとは」解説ブログ、Profllyの無関係な告知ページがこのパターン）
+        if not _has_structural_evidence(r.text, body):
+            continue
+
+        sig.api_hard = True
+        sig.api_url = final_url
+        sig.api_evidence = evidence[:6]
+        sig.has_openapi = ("openapi" in body) or ("swagger" in body)
+        # 英語doc判定: html lang か 本文の日本語率
+        lang = ""
+        m = re.search(r'<html[^>]*\blang=["\']?([a-zA-Z-]+)', r.text)
+        if m:
+            lang = m.group(1).lower()
+        text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
+        sig.english_docs = lang.startswith("en") or (
+            len(text) > 500 and _japanese_ratio(text) < 0.02
+        )
+        return sig
 
     return sig
 
