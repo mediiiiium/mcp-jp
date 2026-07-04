@@ -15,17 +15,23 @@
       "notes": ""
     },
     "base-ec": {
-      "tool_count": 5,
+      "tool_count": 11,
       "tools": [
         "get_shop",
         "list_items",
+        "get_item",
+        "search_items",
+        "list_categories",
+        "get_item_categories",
+        "list_savings",
+        "list_delivery_companies",
         "list_orders",
         "get_order",
         "update_order_status"
       ],
       "docs_url": "https://docs.thebase.in/api/",
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-05",
+      "notes": "2026-07-05深掘り: docs.thebase.in/api/ は公式で健在、各エンドポイントの個別ページ（例 /api/categories/, /api/savings/）にパラメータ・レスポンス例・スコープが明記されており信頼できる。get_item(items/detail)・search_items(items/search)・list_categories(categories/)・get_item_categories(item_categories/detail)・list_savings(savings/, read_savingsスコープ必須)・list_delivery_companies(delivery_companies/, スコープ指定なし)を追加、全て読み取り専用でドキュメント記載のパラメータ/レスポンス/スコープを確認済み。見送り: items/add等の商品書き込み系、categories/add等のカテゴリ書き込み系、item_categories/add等（実在は確認済みだが書き込み系は監査前提の方針により今回は対象外）。search/（グローバル検索）は2022年2月で新規受付終了とドキュメント記載のため未実装。次回はitems書き込み系（add/edit/delete等）の要否を検討する余地あり。"
     },
     "board": {
       "tool_count": 5,

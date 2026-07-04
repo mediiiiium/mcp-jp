@@ -44,6 +44,12 @@ pip install -e .
 |---------|------|
 | `get_shop` | ショップ情報（名前・URL・説明等）を取得。読み取り専用 |
 | `list_items` | 商品一覧を取得（件数・ソート・公開状態・カテゴリで絞り込み可、offsetページネーション） |
+| `get_item` | 商品1件の詳細（画像各サイズURL・バリエーション・商品オプション含む）を取得 |
+| `search_items` | 商品をキーワードで全文検索（title/detail/categories/shop_nameが対象） |
+| `list_categories` | カテゴリ一覧を階層構造込みで取得 |
+| `get_item_categories` | 商品1件に紐づくカテゴリの一覧を取得 |
+| `list_savings` | 振込申請情報の一覧を取得（申請額・手数料・状態・入金期日等） |
+| `list_delivery_companies` | BASE対応の配送業者一覧を取得 |
 | `list_orders` | 注文一覧をサマリ取得（注文日時で絞り込み可、offsetページネーション） |
 | `get_order` | 注文1件の詳細（購入者情報・商品明細・order_item_id 含む）を取得 |
 | `update_order_status` | 注文内の商品行（order_item_id）を発送済み/キャンセルに更新 |
@@ -64,9 +70,23 @@ BASE API（公式ドキュメント: https://docs.thebase.in/api/ ）を調査�
   み作成される）。後払い決済の入金確認・配送会社/追跡番号の登録（`atobarai_status` 等）も本コネクタでは
   未実装。
 - BASE APIには商品の新規作成・編集・削除・画像登録・在庫更新（`items/add` `items/edit` `items/delete`
-  `items/edit_stock` 等）、カテゴリ管理（`categories/*` `item_categories/*`）、振込申請情報
-  （`savings`）、配送会社一覧（`delivery_companies`）等のエンドポイントも存在するが、本コネクタでは
-  未実装（商品・注文の閲覧と発送ステータス更新のみに対応）。
+  `items/add_image` `items/delete_image` `items/edit_stock` `items/delete_variation`）、カテゴリの
+  新規登録・更新・削除（`categories/add` `categories/edit` `categories/delete`）、商品カテゴリの
+  新規登録・削除（`item_categories/add` `item_categories/delete`）等の**書き込み系エンドポイントも
+  存在するが、本コネクタでは未実装**（実在は確認済みだが、業務データを直接改変する操作であり、
+  戦略上「書き込み系は監査・確認前提で慎重に扱う」方針に照らして今回は見送った。読み取り系を
+  優先して拡充している）。
+- `search/`（グローバル商品検索）は2022年2月で新規受付を終了しているとドキュメントに明記されており、
+  新規トークンでは利用できない可能性が高いため未実装。ショップ内検索が必要な場合は `search_items`
+  （`items/search`）を使うこと。
+- 2026-07-05の深掘りで `list_savings`（`GET /1/savings/`）を追加したが、**`read_savings` という
+  専用スコープが必要**（他ツールが前提とする `read_items` 等では権限不足になる）。既存の
+  `BASE_ACCESS_TOKEN` に `read_savings` スコープが含まれていない場合は 403 になるため、必要な場合は
+  BASE Developers 側でスコープを追加したトークンを再取得すること。
+- 友だち情報のような「単体取得」系で実在が確認できず見送った他コネクタの前例（lstep の `get_friend`）
+  と同様の考え方で、本コネクタでも「ドキュメントに明記されたエンドポイントのみ」を実装対象にしている。
+  今回の調査範囲では、ドキュメントに一覧されているエンドポイントは全て実在が確認でき、読み取り系は
+  本README記載の10種で網羅した（未実装は上記の書き込み系および終了済みの `search/` のみ）。
 
 ## 使用例
 
@@ -92,4 +112,12 @@ BASE API（公式ドキュメント: https://docs.thebase.in/api/ ）を調査�
 
 ```
 注文 abc123 を発送済みに更新して
+```
+
+```
+「Tシャツ」で商品を検索して
+```
+
+```
+今月の振込申請の状況を教えて
 ```
