@@ -223,9 +223,61 @@ async def list_tools() -> list[types.Tool]:
             description=(
                 "チーム全体の最新コメントを横断的に一覧取得する（esa Web UIの「みんなの新着」に相当）。"
                 "特定の記事に絞ったコメントではなく、チーム全体の会話の流れを把握したい場合に使う。"
-                "ページングは page/per_page 方式（既定20、最大100）。esa APIには記事単位のコメント取得"
-                "（GET .../posts/:post_number/comments）やコメントの投稿・更新・削除エンドポイントも"
-                "存在するが、本コネクタではチーム全体のコメント閲覧のみに対応しており、それらは未実装。"
+                "特定の記事のコメントだけが欲しい場合は get_post_comments を使う。ページングは page/per_page "
+                "方式（既定20、最大100）。esa APIにはコメントの投稿・更新・削除エンドポイントも存在するが、"
+                "本コネクタは閲覧のみに対応しており、それらは未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "description": "ページ番号（1始まり、既定1）",
+                        "default": 1,
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（最大100、既定20）",
+                        "default": 20,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_post_comments",
+            description=(
+                "特定の記事番号に紐づくコメントのみを一覧取得する（esa API: GET /v1/teams/:team_name/"
+                "posts/:post_number/comments）。チーム全体のコメントの流れを見たい場合は list_comments を、"
+                "記事本文と一緒にコメントも取得したい場合は get_post の include='comments' パラメータを使う"
+                "方が効率的な場合がある。ページングは page/per_page 方式（既定20、最大100）。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "post_number": {
+                        "type": "integer",
+                        "description": "コメントを取得する記事番号",
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "ページ番号（1始まり、既定1）",
+                        "default": 1,
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（最大100、既定20）",
+                        "default": 20,
+                    },
+                },
+                "required": ["post_number"],
+            },
+        ),
+        types.Tool(
+            name="list_tags",
+            description=(
+                "チーム内で使われているタグを一覧取得する（esa API: GET /v1/teams/:team_name/tags）。"
+                "各タグに紐づく記事数（posts_count）も含まれ、タグ付けされた記事数の降順で返る。"
+                "list_posts で 'tag:タグ名' 指定子を使う前に、実際に存在するタグ名を確認したい場合に有用。"
                 "書き込みは行わない。"
             ),
             inputSchema={
@@ -242,6 +294,55 @@ async def list_tools() -> list[types.Tool]:
                         "default": 20,
                     },
                 },
+            },
+        ),
+        types.Tool(
+            name="list_members",
+            description=(
+                "チームメンバーを一覧取得する（esa API: GET /v1/teams/:team_name/members）。各メンバーの"
+                "name/screen_name/role（owner/member）/posts_count/joined_at/last_accessed_at 等を返す。"
+                "記事の投稿者（@screen_name）で list_posts を絞り込む前に、正しい screen_name を確認したい"
+                "場合にも使える。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "sort": {
+                        "type": "string",
+                        "description": "並び替え項目。posts_count=投稿数順（既定）、joined=参加日順、"
+                        "last_accessed=最終アクセス順。",
+                        "enum": ["posts_count", "joined", "last_accessed"],
+                        "default": "posts_count",
+                    },
+                    "order": {
+                        "type": "string",
+                        "description": "ソート方向（desc: 降順・既定, asc: 昇順）",
+                        "enum": ["desc", "asc"],
+                        "default": "desc",
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "ページ番号（1始まり、既定1）",
+                        "default": 1,
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（最大100、既定20）",
+                        "default": 20,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_team_stats",
+            description=(
+                "チーム全体の統計情報を取得する（esa API: GET /v1/teams/:team_name/stats）。members/posts/"
+                "posts_wip/posts_shipped/comments/stars の件数と daily_active_users/weekly_active_users/"
+                "monthly_active_users を返す。チームの活用状況を俯瞰したい場合に使う。引数不要。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
             },
         ),
     ]
@@ -309,6 +410,41 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "per_page": arguments.get("per_page", 20),
                 }
                 r = client.get(f"/v1/teams/{team}/comments", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_post_comments":
+                num = arguments["post_number"]
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                r = client.get(f"/v1/teams/{team}/posts/{num}/comments", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_tags":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                r = client.get(f"/v1/teams/{team}/tags", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_members":
+                params = {
+                    "sort": arguments.get("sort", "posts_count"),
+                    "order": arguments.get("order", "desc"),
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                r = client.get(f"/v1/teams/{team}/members", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_team_stats":
+                r = client.get(f"/v1/teams/{team}/stats")
                 r.raise_for_status()
                 return format_response(r.json())
 

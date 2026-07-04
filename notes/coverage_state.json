@@ -74,17 +74,21 @@
       "notes": "2026-07-05深掘り: 公式APIドキュメント(https://app.swaggerhub.com/apis/CloudSign/cloudsign-web_api、OpenAPI3.0形式、api.swaggerhub.com公開レジストリから取得)を精査。読み取り専用で以下6ツールを追加: get_document_alert(書類アラート情報/documents/{id}/alert)、get_document_attribute(書類属性情報/documents/{id}/attribute)、get_me(自ユーザー情報/me)、list_team_documents(チーム内書類一覧/team_documents)、list_cabinets(キャビネット一覧/cabinets)、list_cabinet_documents(キャビネット内書類一覧・エンタープライズ限定/cabinet_documents)。重大: 既存実装のバグを本仕様書との突合で発見し修正した - (1)list_documentsが送っていたtitle/offset/limitパラメータはGET /documentsに存在せず、正しくはpage+status(enum -1,0,1,2,3,4)のみ。(2)create_document/set_participantsはJSON送信していたが仕様はapplication/x-www-form-urlencoded限定(_client()のContent-Type固定を解除)。(3)send_documentはPUT+{status:1}を送っていたが正しくはPOST(ボディなし)で送信/リマインド。(4)set_participantsはparticipantID=配列インデックス(1始まり)としてPUTで上書きする実装だったが、participantIDは仕様上32-36文字の文字列IDでありPOST /participants(宛先追加)が正しい操作のため変更。見送り: delete_draft_document(下書き削除/DELETE documents/{id}、実在確認済みだが不可逆な書き込み操作のため読み取り中心の方針で見送り。旧READMEの「削除エンドポイントは存在しない」という記述は誤りだったため訂正)、参加者の更新・削除/入力欄・添付ファイル・共有先(reportees)のCRUD(書き込み系、契約内容変更のため見送り)、ファイル・証明書ダウンロード(GET files/{fileID}, certificate。バイナリレスポンスでテキストベース設計と不整合)、imported_documents作成(締結済み契約書アップロード、書き込み系)。書類ステータスの13(インポート書類)はdocumentModel.statusのdescriptionには記載があるがGET /documentsのstatusパラメータのenumには含まれず、旧READMEの記述はこの点で不正確だった。"
     },
     "esa": {
-      "tool_count": 5,
+      "tool_count": 9,
       "tools": [
         "list_posts",
         "get_post",
         "create_post",
         "update_post",
-        "list_comments"
+        "list_comments",
+        "get_post_comments",
+        "list_tags",
+        "list_members",
+        "get_team_stats"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://docs.esa.io/posts/102",
+      "last_deep_check": "2026-07-05",
+      "notes": "深掘りで4ツール追加: get_post_comments(GET posts/:num/comments), list_tags(GET tags), list_members(GET members), get_team_stats(GET stats)。いずれも公式ドキュメントでエンドポイント・レスポンス形を確認済みの読み取り専用。見送り: コメント投稿/更新/削除、スター/Watch付与解除、カテゴリ一括移動、メンバー削除/招待管理、絵文字管理（書き込み系またはスコープ外、需要未確認）、GET /v1/teams・GET /v1/user（本コネクタはチーム固定運用でマルチチーム前提のエンドポイントは対象外）。"
     },
     "freshdesk": {
       "tool_count": 7,
