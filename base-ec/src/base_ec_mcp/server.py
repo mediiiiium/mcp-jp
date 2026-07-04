@@ -89,6 +89,160 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="get_item",
+            description=(
+                "1件の商品の詳細情報を取得する。list_items の一覧情報に加え、商品画像の各サイズURL"
+                "（オリジナル/76px/146px/300px/500px/640px/スマートフォン用480px/640px）、バリエーション、"
+                "商品オプション（選択式・文字入れ式、必須フラグ含む）まで展開して取得できる。"
+                "特定商品の在庫・バリエーション詳細を確認したい場合に使う。"
+                "1件取得のみでページネーションはない。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "item_id": {
+                        "type": "integer",
+                        "description": "商品ID（list_items のレスポンスの item_id）",
+                    },
+                },
+                "required": ["item_id"],
+            },
+        ),
+        types.Tool(
+            name="search_items",
+            description=(
+                "ショップ内の商品をキーワードで検索する。list_items はカテゴリ・公開状態での絞り込みのみ"
+                "対応するのに対し、こちらは商品名・詳細説明・カテゴリ名・ショップ名を対象にした全文検索が"
+                "できる。「〇〇という商品を探して」といったキーワード検索に使う。"
+                "商品の登録・更新内容がこの検索結果に反映されるまで最大1時間程度かかる場合がある"
+                "（直近の変更が反映されていない可能性がある）。"
+                "1回のリクエストで最大100件（未指定時は10件）。ページネーションはoffset方式"
+                "（既定0、最大10000）。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "q": {
+                        "type": "string",
+                        "description": "検索キーワード（スペース区切りで複数指定可）",
+                    },
+                    "fields": {
+                        "type": "string",
+                        "description": (
+                            "検索対象カラムをカンマ区切りで指定（title, detail, categories, shop_name）。"
+                            "既定は title,detail,categories"
+                        ),
+                    },
+                    "order": {
+                        "type": "string",
+                        "description": "ソート項目（list_order: 管理画面の並び順 / modified: 更新日、既定はキーワードマッチ度順）",
+                        "enum": ["list_order", "modified"],
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "ソート方向（asc: 昇順, desc: 降順、既定 desc）",
+                        "enum": ["asc", "desc"],
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "取得件数（最大100、既定10）",
+                        "default": 10,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "取得開始位置（既定0、最大10000）",
+                        "default": 0,
+                    },
+                },
+                "required": ["q"],
+            },
+        ),
+        types.Tool(
+            name="list_categories",
+            description=(
+                "BASEショップに登録されているカテゴリの一覧を、階層構造（parent_number による親子関係、"
+                "最大3階層のcode）を含めて取得する。list_items の category_id 絞り込みに渡すIDを調べたい"
+                "場合や、カテゴリ構成を確認したい場合に使う。"
+                "パラメータは不要で、常に全カテゴリを一括取得する（ページネーションはない）。書き込みは行わない。"
+                "BASE APIにはカテゴリの新規登録・更新・削除エンドポイント（categories/add, categories/edit,"
+                " categories/delete）も存在するが、本コネクタでは未実装のため一覧取得のみ可能。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="get_item_categories",
+            description=(
+                "1件の商品に紐づいているカテゴリの一覧（item_category_id, item_id, category_id）を取得する。"
+                "list_categories と組み合わせて、特定商品がどのカテゴリに属しているかを確認する場合に使う。"
+                "1商品分の取得のみでページネーションはない。書き込みは行わない。"
+                "BASE APIには商品カテゴリの新規登録・削除エンドポイント（item_categories/add,"
+                " item_categories/delete）も存在するが、本コネクタでは未実装のため取得のみ可能。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "item_id": {
+                        "type": "integer",
+                        "description": "対象の商品ID",
+                    },
+                },
+                "required": ["item_id"],
+            },
+        ),
+        types.Tool(
+            name="list_savings",
+            description=(
+                "BASEショップの振込申請情報の一覧を、申請額（drawings）・各種手数料（事務手数料/振込手数料/"
+                "お急ぎ振込手数料）・状態（requested: 申請中 / processing: 処理中 / done: 完了 / rejected: 拒否）・"
+                "入金期日等を含めて取得する。「今月の振込申請はどうなっているか」「入金予定を確認したい」"
+                "といった資金繰り確認に使う。"
+                "1回のリクエストで最大100件（未指定時は20件）。ページネーションはoffset方式。"
+                "start_created/end_created による絞り込みは振込申請日時ベース。"
+                "read_savings スコープが付与されたトークンでないと利用できない（read_items 等の他スコープ"
+                "では権限不足になる）。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "取得件数（最大100、既定20）",
+                        "default": 20,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "取得開始位置（既定0）",
+                        "default": 0,
+                    },
+                    "start_created": {
+                        "type": "string",
+                        "description": "振込申請日時の範囲開始（yyyy-mm-dd形式）",
+                    },
+                    "end_created": {
+                        "type": "string",
+                        "description": "振込申請日時の範囲終了（yyyy-mm-dd形式）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_delivery_companies",
+            description=(
+                "BASEが対応している配送業者の一覧（delivery_company_id, name）を取得する。"
+                "配送業者名からIDを調べたい場合に使う（例: 追跡番号登録機能を使う際の配送業者特定）。"
+                "パラメータは不要で、常に全件を一括取得する（ページネーションはない）。"
+                "ドキュメント上、他のエンドポイントと異なりOAuthスコープの指定がない（トークンさえあれば"
+                "取得できる想定）。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
             name="list_orders",
             description=(
                 "BASEショップの注文一覧を、注文日・合計金額・発送状況（dispatch_status）等のサマリ情報で取得する。"
@@ -204,6 +358,57 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if arguments.get("category_id") is not None:
                     params["category_id"] = arguments["category_id"]
                 r = client.get("/items", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_item":
+                item_id = arguments["item_id"]
+                r = client.get(f"/items/detail/{item_id}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "search_items":
+                params = {
+                    "q": arguments["q"],
+                    "limit": arguments.get("limit", 10),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("fields"):
+                    params["fields"] = arguments["fields"]
+                if arguments.get("order"):
+                    params["order"] = arguments["order"]
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/items/search", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_categories":
+                r = client.get("/categories")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_item_categories":
+                item_id = arguments["item_id"]
+                r = client.get(f"/item_categories/detail/{item_id}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_savings":
+                params = {
+                    "limit": arguments.get("limit", 20),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("start_created"):
+                    params["start_created"] = arguments["start_created"]
+                if arguments.get("end_created"):
+                    params["end_created"] = arguments["end_created"]
+                r = client.get("/savings", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_delivery_companies":
+                r = client.get("/delivery_companies")
                 r.raise_for_status()
                 return format_response(r.json())
 
