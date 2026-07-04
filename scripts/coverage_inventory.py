@@ -137,7 +137,9 @@ def build_state() -> dict:
         connectors[dir_name] = {
             "tool_count": len(tools),
             "tools": tools,
-            "docs_url": docs_url,
+            # README から抽出できない場合は手動設定済みの既存値を温存する
+            # （深掘りエージェントが docs_url を直接記入するケースがあるため）
+            "docs_url": docs_url or prev.get("docs_url"),
             "last_deep_check": prev.get("last_deep_check"),
             "notes": prev.get("notes", ""),
         }

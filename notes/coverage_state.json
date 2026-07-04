@@ -112,11 +112,11 @@
         "create_event",
         "list_users",
         "list_workflow_requests",
-        "get_workflow_request",
-        "get_presence",
         "get_organizations",
         "get_organization_users",
-        "get_facilities"
+        "get_workflow_request",
+        "get_facilities",
+        "get_presence"
       ],
       "docs_url": "https://cybozu.dev/ja/garoon/docs/rest-api/",
       "last_deep_check": "2026-07-05",
