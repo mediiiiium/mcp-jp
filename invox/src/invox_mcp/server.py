@@ -194,6 +194,101 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="get_supplier",
+            description=(
+                "仕入先コードを指定して仕入先1件の詳細情報（源泉徴収の要否、課税/免税区分、"
+                "インボイス登録番号、支払方法のリスト、請求処理時の指示、拡張項目など）を取得する。"
+                "同一の仕入先コードが複数存在する場合はエラーになる。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "supplier_code": {"type": "string", "description": "仕入先コード（完全一致）"},
+                },
+                "required": ["supplier_code"],
+            },
+        ),
+        types.Tool(
+            name="list_supplier_trade_conditions",
+            description=(
+                "指定した仕入先コードに紐づく取引設定（部門・プロジェクトの組み合わせごとの支払方法設定）の"
+                "一覧を取得する。仕入先が複数の部門・プロジェクトで異なる支払方法を使っている場合の確認に使う。"
+                "書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "supplier_code": {"type": "string", "description": "仕入先コード（完全一致）"},
+                },
+                "required": ["supplier_code"],
+            },
+        ),
+        types.Tool(
+            name="list_upload_settings",
+            description=(
+                "invox 管理画面で設定されているアップロード設定（部門・プロジェクトの選択方法、データ化方法、"
+                "請求書の区切り方、アップロード用メールアドレス・ページURLなど）の一覧を取得する。"
+                "1ページ最大100件。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1ページ最大100件）。", "default": 1},
+                },
+            },
+        ),
+        types.Tool(
+            name="get_invoice_download_url",
+            description=(
+                "指定した請求書1件の画像・PDFファイルをダウンロードするための一時URLを取得する"
+                "（発行されたURLは1分間のみ有効）。取得したURLへは本ツールの外部で別途アクセスする必要がある。"
+                "自動生成などでファイル自体が存在しない請求書の場合は download_url が null で返る。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "invoice_id": {"type": "string", "description": "請求書ID"},
+                },
+                "required": ["invoice_id"],
+            },
+        ),
+        types.Tool(
+            name="get_invoices_zip_download_url",
+            description=(
+                "複数の請求書IDを指定し、それらの請求書ファイルをまとめた zip ファイルをダウンロードするための"
+                "URLを取得する（最大100件まで指定可能）。invoice_ids を省略した場合の挙動は API ドキュメントに"
+                "明記されていない。取得したURLへは本ツールの外部で別途アクセスする必要がある。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "invoice_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "請求書IDの配列（最大100件）。",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="confirm_invoice_message",
+            description=(
+                "受取請求書のワークフローメッセージ（get_received_invoice のレスポンスに含まれる "
+                "messages[].message_id、confirmed=false のもの）を1件、確認済みにする。メッセージの内容や"
+                "請求書のデータ自体は変更しない。確認済みへの変更は取り消すAPIが存在しないため元に戻せない"
+                "（実害は低いが不可逆）。指定した message_id が存在しない、または請求書IDと一致しない場合は"
+                "エラーになる。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "invoice_id": {"type": "string", "description": "請求書ID"},
+                    "message_id": {"type": "integer", "description": "確認済みにするメッセージのID"},
+                },
+                "required": ["invoice_id", "message_id"],
+            },
+        ),
+        types.Tool(
             name="export_journal",
             description=(
                 "invox 管理画面側の出力設定（会計ソフト向けの出力形式）に従って、費用計上仕訳"
@@ -300,6 +395,50 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if arguments.get("sort"):
                     params["sort"] = arguments["sort"]
                 r = client.get("/invoice_receive/supplier/list", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_supplier":
+                params = {"supplier_code": arguments["supplier_code"]}
+                r = client.get("/invoice_receive/supplier/get", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_supplier_trade_conditions":
+                params = {"supplier_code": arguments["supplier_code"]}
+                r = client.get("/invoice_receive/supplier_trade_condition/list", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_upload_settings":
+                params = {"page": arguments.get("page", 1)}
+                r = client.get("/invoice_receive/upload_setting/list", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_invoice_download_url":
+                params = {"invoice_id": arguments["invoice_id"]}
+                r = client.get("/invoice_receive/invoice/download_url/get", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_invoices_zip_download_url":
+                params = {}
+                if arguments.get("invoice_ids"):
+                    # invox API は invoice_ids をカンマ区切りの単一クエリパラメータとして要求する。
+                    params["invoice_ids"] = ",".join(arguments["invoice_ids"])
+                r = client.get("/invoice_receive/invoice/multiple_download_url/get", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "confirm_invoice_message":
+                # invox の POST 系エンドポイントは invox_company_code を JSON ボディ側に要求する。
+                payload = {
+                    "invox_company_code": _company_code(),
+                    "invoice_id": arguments["invoice_id"],
+                    "message_id": arguments["message_id"],
+                }
+                r = client.post("/invoice_receive/invoice/message/confirm", json=payload)
                 r.raise_for_status()
                 return format_response(r.json())
 

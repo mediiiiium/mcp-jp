@@ -170,17 +170,23 @@
       "notes": ""
     },
     "invox": {
-      "tool_count": 5,
+      "tool_count": 11,
       "tools": [
         "list_received_invoices",
         "get_received_invoice",
         "approve_received_invoice",
         "list_suppliers",
+        "get_supplier",
+        "list_supplier_trade_conditions",
+        "list_upload_settings",
+        "get_invoice_download_url",
+        "get_invoices_zip_download_url",
+        "confirm_invoice_message",
         "export_journal"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://invox.jp/api/",
+      "last_deep_check": "2026-07-05",
+      "notes": "2026-07-05深掘り: 公式APIドキュメント(https://invox.jp/api/、Redoc/OpenAPI3.0形式)をHTML内埋め込みJSON(__redoc_state)から全68パス取得し確認。既存5ツールはパラメータ・仕様とも齟齬なし。読み取り専用で以下5ツールを追加: get_supplier(仕入先詳細/invoice_receive/supplier/get)、list_supplier_trade_conditions(仕入先取引設定一覧/invoice_receive/supplier_trade_condition/list)、list_upload_settings(アップロード設定一覧/invoice_receive/upload_setting/list)、get_invoice_download_url(請求書ファイル一時URL取得/invoice_receive/invoice/download_url/get、URL文字列を返すのみでバイナリ本体は扱わない)、get_invoices_zip_download_url(複数請求書のzipダウンロードURL取得/invoice_receive/invoice/multiple_download_url/get、最大100件、invoice_idsはカンマ区切り単一パラメータ)。書き込み系を1件追加: confirm_invoice_message(請求書ワークフローメッセージの確認済み化/invoice_receive/invoice/message/confirm、request bodyはinvox_company_code+invoice_id+message_idのみで請求書データ自体は変更しない低リスク操作だが取り消し不可)。見送り: invoice/apply・reject・fix・unfix・set_exported(いずれもワークフロー承認ルートや会計確定状態を変更する影響範囲の大きい書き込み系、実在確認済みだが慎重方針のため見送り)、請求書ファイル本体・添付ファイルの直接ダウンロード(GET download, GET attached_file/download。バイナリレスポンスでテキストベース設計と不整合、代わりにURL取得系ツールを実装)、仕入先・支払設定・取引設定のCRUD書き込み系、invoice_issue(発行請求書)・expense(経費精算)・e_storage(電子帳簿保存)の3ドメイン全般(書類登録・スタッフ/部門/プロジェクトマスタ管理は書き込み系のみでGET一覧・詳細取得APIが存在しないため対象外。invoice_issueの唯一のGETはファイルURL取得のみで一覧を辿る手段が無い)、部門・プロジェクト・勘定科目・補助勘定科目・汎用マスタ・スタッフのマスタ管理(いずれもPOST/DELETEのみでGET一覧APIが提供されていない)。"
     },
     "jobcan-workflow": {
       "tool_count": 5,
