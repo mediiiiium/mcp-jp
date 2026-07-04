@@ -1,5 +1,4 @@
 notes/*
-!notes/candidates_state.json
 !notes/mcp_trend_state.json
 !notes/coverage_state.json
 scripts/*
