@@ -143,17 +143,20 @@
       "notes": ""
     },
     "hrmos-kintai": {
-      "tool_count": 5,
+      "tool_count": 8,
       "tools": [
         "get_monthly_attendance",
         "get_daily_attendance",
         "list_users",
         "list_departments",
+        "get_monthly_report",
+        "list_paid_holidays",
+        "get_paid_holiday_balance",
         "get_user_stamps"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://ieyasu.co/docs/api.html",
+      "last_deep_check": "2026-07-05",
+      "notes": "公式OpenAPI仕様(https://ieyasu.co/docs/openapi.json)を全35パス精査。追加: get_monthly_report(GET /work_output_months/monthly/{month} 月次集計レポート、READMEの既知の制約に記載されていたギャップを解消)、list_paid_holidays(GET /paid_holidays)、get_paid_holiday_balance(GET /paid_holidays/{id}/users/{user_id}/year/{year} 有給残数履歴)。見送り: POST /users(社員登録更新、既存データ上書き事故リスク)、PUT /work・POST /work/other_systems(承認済み勤怠の書き換え、影響大)、POST /stamp_logs(打刻登録、取り消しAPIなし)、work_output_diffs・work_output_original_aggregates(利用頻度低)、business_partners・deal_contracts・nnc/reports(勤怠管理の対象外モジュール)、employments・lodgments・segments・prefecturals(単体では需要低いマスタ系)。理由はREADMEの既知の制約に詳細記載。"
     },
     "intercom": {
       "tool_count": 6,
