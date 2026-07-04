@@ -143,6 +143,78 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="get_monthly_report",
+            description=(
+                "指定月の月次集計レポート（社員1人1行、総労働時間・残業時間・遅刻日数・有給残日数などを"
+                "集計した値）を取得する。get_monthly_attendance が返す1日1行の明細とは異なるエンドポイント"
+                "（work_output_months）で、月締め状態（status）も含む。number（社員番号のカンマ区切り、"
+                "list_users の number フィールド。id ではない点に注意）で絞り込み可能。status で月締め状況を"
+                "絞り込める（0=未申請, 1=申請可能, 2=申請中, 3=承認, 99=強制承認。カンマ区切りで複数指定可）。"
+                "from/to は勤怠月そのものではなく「レコードの更新日時（ISO 8601形式）」による絞り込み（差分"
+                "同期用）。1ページ最大100件（既定50件、API側の既定は25件）。レスポンスヘッダーに総件数・"
+                "総ページ数が入るが本ツールはボディのみ返すため、次ページの有無は件数が0件になるまで page を"
+                "増やして確認すること。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "month": {"type": "string", "description": "対象月（YYYY-MM形式。例: 2026-06）"},
+                    "number": {"type": "string", "description": "社員番号で絞り込む（list_users の number フィールド。カンマ区切りで複数指定可。例: A0001,B0001）"},
+                    "status": {"type": "string", "description": "月締め状況で絞り込む（0=未申請, 1=申請可能, 2=申請中, 3=承認, 99=強制承認。カンマ区切りで複数指定可。例: 3,99）"},
+                    "from": {"type": "string", "description": "レコードの更新日時がこの日時以降のものだけに絞り込む（ISO 8601形式。勤怠月そのものの絞り込みではない）"},
+                    "to": {"type": "string", "description": "レコードの更新日時がこの日時以前のものだけに絞り込む（ISO 8601形式。勤怠月そのものの絞り込みではない）"},
+                    "page": {"type": "integer", "description": "ページ番号（既定1）", "default": 1, "minimum": 1},
+                    "limit": {"type": "integer", "description": "1ページあたりの件数（最大100、既定50）", "default": 50, "minimum": 1, "maximum": 100},
+                },
+                "required": ["month"],
+            },
+        ),
+        types.Tool(
+            name="list_paid_holidays",
+            description=(
+                "会社に設定されている休暇（有給休暇の種類。例: 一般社員向け年次有給休暇など）の一覧を取得する。"
+                "ここで返る `id` は get_paid_holiday_balance に渡す休暇設定IDとして使う。from/to はレコードの"
+                "更新日時（ISO 8601形式）による絞り込み。1ページ最大100件（既定50件、API側の既定は25件）。"
+                "レスポンスヘッダーに総件数・総ページ数が入るが本ツールはボディのみ返すため、次ページの有無は"
+                "件数が0件になるまで page を増やして確認すること。書き込みは行わない（休暇設定の作成・更新・"
+                "削除APIはHRMOS勤怠側に提供されていない）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "from": {"type": "string", "description": "レコードの更新日時がこの日時以降のものだけに絞り込む（ISO 8601形式）"},
+                    "to": {"type": "string", "description": "レコードの更新日時がこの日時以前のものだけに絞り込む（ISO 8601形式）"},
+                    "page": {"type": "integer", "description": "ページ番号（既定1）", "default": 1, "minimum": 1},
+                    "limit": {"type": "integer", "description": "1ページあたりの件数（最大100、既定50）", "default": 50, "minimum": 1, "maximum": 100},
+                },
+            },
+        ),
+        types.Tool(
+            name="get_paid_holiday_balance",
+            description=(
+                "指定した社員・年度・休暇設定について、休暇の付与・取得・残数の履歴（1レコード=1時点のスナップ"
+                "ショット。残日数 remaining_days/remaining_hours、付与 received_days、取得 taken_days、失効 "
+                "expired_days などを含む）を取得する。現在の残日数だけを知りたい場合は、返ってきたレコードのうち"
+                "最新のものを見ればよい（このAPI自体に「最新のみ返す」オプションはない）。paid_holiday_id は "
+                "list_paid_holidays の id、user_id は list_users の id を使う。from/to はレコードの更新日時"
+                "（ISO 8601形式）による絞り込み。1ページ最大100件（既定50件、API側の既定は25件）。書き込みは"
+                "行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "paid_holiday_id": {"type": "integer", "description": "休暇設定ID（list_paid_holidays の id フィールド）"},
+                    "user_id": {"type": "integer", "description": "社員ID（list_users の id フィールド。社員番号 number ではない）"},
+                    "year": {"type": "integer", "description": "年度（例: 2026）"},
+                    "from": {"type": "string", "description": "レコードの更新日時がこの日時以降のものだけに絞り込む（ISO 8601形式）"},
+                    "to": {"type": "string", "description": "レコードの更新日時がこの日時以前のものだけに絞り込む（ISO 8601形式）"},
+                    "page": {"type": "integer", "description": "ページ番号（既定1）", "default": 1, "minimum": 1},
+                    "limit": {"type": "integer", "description": "1ページあたりの件数（最大100、既定50）", "default": 50, "minimum": 1, "maximum": 100},
+                },
+                "required": ["paid_holiday_id", "user_id", "year"],
+            },
+        ),
+        types.Tool(
             name="get_user_stamps",
             description=(
                 "指定ユーザー1人分の打刻履歴（出勤・退勤・休憩開始・休憩終了の各イベント）を、最新のものから"
@@ -239,6 +311,56 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if arguments.get("to"):
                     params["to"] = arguments["to"]
                 r = client.get("/departments", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_monthly_report":
+                month = arguments["month"]
+                params = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                if arguments.get("number"):
+                    params["number"] = arguments["number"]
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("from"):
+                    params["from"] = arguments["from"]
+                if arguments.get("to"):
+                    params["to"] = arguments["to"]
+                r = client.get(f"/work_output_months/monthly/{month}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_paid_holidays":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                if arguments.get("from"):
+                    params["from"] = arguments["from"]
+                if arguments.get("to"):
+                    params["to"] = arguments["to"]
+                r = client.get("/paid_holidays", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_paid_holiday_balance":
+                paid_holiday_id = arguments["paid_holiday_id"]
+                user_id = arguments["user_id"]
+                year = arguments["year"]
+                params = {
+                    "page": arguments.get("page", 1),
+                    "limit": arguments.get("limit", 50),
+                }
+                if arguments.get("from"):
+                    params["from"] = arguments["from"]
+                if arguments.get("to"):
+                    params["to"] = arguments["to"]
+                r = client.get(
+                    f"/paid_holidays/{paid_holiday_id}/users/{user_id}/year/{year}",
+                    params=params,
+                )
                 r.raise_for_status()
                 return format_response(r.json())
 
