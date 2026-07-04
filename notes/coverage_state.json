@@ -418,16 +418,25 @@
       "notes": ""
     },
     "talentio": {
-      "tool_count": 4,
+      "tool_count": 13,
       "tools": [
         "list_candidates",
         "get_candidate",
         "list_jobs",
-        "get_job"
+        "get_job",
+        "list_job_titles",
+        "list_candidate_channels",
+        "list_form_templates",
+        "list_employees",
+        "list_employee_groups",
+        "list_workspaces",
+        "list_deleted_candidates",
+        "list_candidate_comments",
+        "list_candidate_attachments"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://developers.talentio.com/",
+      "last_deep_check": "2026-07-05",
+      "notes": "2026-07-05深掘り: 公式APIドキュメント(https://developers.talentio.com/、Redoc/OpenAPI3.0形式)をHTML内埋め込みJSON(__redoc_state)から全パス取得し確認。読み取り専用で以下9ツールを追加: list_job_titles(職種一覧/job_titles)、list_candidate_channels(応募経路一覧/candidate_channels)、list_form_templates(評価フォームテンプレート一覧/form_templates)、list_employees(メンバー一覧/employees)、list_employee_groups(グループ一覧/employee_groups)、list_workspaces(ワークスペース一覧/workspaces)、list_deleted_candidates(削除済み候補者一覧/candidates/deleted)、list_candidate_comments(候補者コメント一覧/candidates/{id}/comments、GETのみ)、list_candidate_attachments(候補者添付ファイル一覧/candidates/{id}/attachments、GETのみ)。見送り(書き込み系、エンドポイント実在は確認済みだが読み取り中心の方針のため未実装): POST /candidates(候補者追加)、PATCH /candidates/{id}(候補者更新)、POST /candidates/tags(タグ設定)、POST /candidates/{id}/stages(選考追加)、POST /candidates/{id}/comments(コメント追加)、POST・DELETE /candidates/{id}/attachments(添付ファイル追加・削除)、PUT /candidates/{id}/stages/{sid}/evaluations/{eid}(評価追加・更新)、POST /requisitions(求人追加)。"
     },
     "toggl": {
       "tool_count": 9,

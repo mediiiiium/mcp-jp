@@ -181,6 +181,193 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["job_id"],
             },
         ),
+        types.Tool(
+            name="list_job_titles",
+            description=(
+                "職種（job title）の一覧を取得する。求人の分類や、list_candidates の job_title_ids で"
+                "絞り込む前に対象の職種IDを調べる用途に使う。各職種には紐づく求人一覧（requisitions）が"
+                "含まれる。ページネーションは page 番号方式（1始まり）で1ページ100件固定。総件数は"
+                "レスポンスヘッダー X-Total に含まれるが本コネクタは本文のみを返す。読み取り専用で"
+                "書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "archived"],
+                        "description": "職種の状態で絞り込む（active=アクティブ / archived=アーカイブ済み）。省略時は全件",
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": ["createdAt", "-createdAt", "updatedAt", "-updatedAt"],
+                        "description": "並び替え基準（先頭に - を付けると降順）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_candidate_channels",
+            description=(
+                "候補者の応募経路（チャネル。転職サイト・エージェント・社員紹介・自由入力など）の一覧を"
+                "取得する。応募経路ごとの棚卸しや分析の前提となるマスタデータの確認に使う。ページネーションは"
+                "page 番号方式（1始まり）で1ページ100件固定。読み取り専用で書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "sort": {
+                        "type": "string",
+                        "enum": ["createdAt", "-createdAt", "updatedAt", "-updatedAt"],
+                        "description": "並び替え基準（先頭に - を付けると降順）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_form_templates",
+            description=(
+                "評価フォームテンプレート（選考時に使う評価項目のひな形）の一覧を取得する。id と name のみの"
+                "シンプルな一覧で、get_candidate の evaluations に登場するフォームがどのテンプレートに"
+                "基づくかを確認する用途に使う。ページネーションは page 番号方式（1始まり）で1ページ100件固定。"
+                "読み取り専用で書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                },
+            },
+        ),
+        types.Tool(
+            name="list_employees",
+            description=(
+                "Talentio 利用メンバー（社員アカウント）の一覧を取得する。担当求人（responsibleRequisitions）や"
+                "所属グループ（groups）、権限（role: admin/manager/member）を確認する用途に使う。ページネーションは"
+                "page 番号方式（1始まり）で1ページ100件固定。読み取り専用で書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "inactive"],
+                        "description": "メンバーの状態で絞り込む（active=有効 / inactive=無効）。省略時は全件",
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["admin", "manager", "member"],
+                        "description": "メンバーの役割で絞り込む。省略時は全件",
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": ["createdAt", "-createdAt", "updatedAt", "-updatedAt"],
+                        "description": "並び替え基準（先頭に - を付けると降順）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_employee_groups",
+            description=(
+                "メンバーの所属グループ（組織構成）の一覧を取得する。各グループに所属するメンバー一覧"
+                "（employees）を含む。ページネーションは page 番号方式（1始まり）で1ページ100件固定。"
+                "読み取り専用で書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "sort": {
+                        "type": "string",
+                        "enum": ["createdAt", "-createdAt", "updatedAt", "-updatedAt"],
+                        "description": "並び替え基準（先頭に - を付けると降順）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_workspaces",
+            description=(
+                "ワークスペース（テナント）の一覧を取得する。複数ワークスペースを利用している組織で、"
+                "アクティブ／アーカイブ済みの棚卸しに使う。ページネーションは page 番号方式（1始まり）で"
+                "1ページ100件固定。読み取り専用で書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "archived"],
+                        "description": "ワークスペースの状態で絞り込む（active=アクティブ / archived=アーカイブ済み）。省略時は全件",
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": ["createdAt", "-createdAt", "updatedAt", "-updatedAt"],
+                        "description": "並び替え基準（先頭に - を付けると降順）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_deleted_candidates",
+            description=(
+                "削除済み候補者の一覧（候補者IDと削除日時のみ）を削除日時の降順で取得する。外部システムとの"
+                "同期時に、Talentio 側で削除された候補者を検知して連携先からも除去する用途に使う。"
+                "ページネーションは page 番号方式（1始まり）で1ページ100件固定。読み取り専用で書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "deleted_at_from": {
+                        "type": "string",
+                        "description": "削除日時の範囲開始（yyyy-MM-ddThh:mm:ss）",
+                    },
+                    "deleted_at_to": {
+                        "type": "string",
+                        "description": "削除日時の範囲終了（yyyy-MM-ddThh:mm:ss）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_candidate_comments",
+            description=(
+                "指定した候補者への社内コメント（選考メモ等）一覧を取得する。get_candidate の詳細情報には"
+                "含まれないコメントスレッドを確認したい場合に使う。コメント内容にメンションが含まれる場合、"
+                "`${email@example.com}` のような形式で本文中に埋め込まれる。candidate_id は list_candidates の"
+                "レスポンスの id 値を指定する。読み取り専用で書き込みは行わない（コメント投稿 API は"
+                "存在するが、本コネクタは読み取り中心の方針のため未実装）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "candidate_id": {"type": "string", "description": "候補者ID（list_candidates で取得）"},
+                },
+                "required": ["candidate_id"],
+            },
+        ),
+        types.Tool(
+            name="list_candidate_attachments",
+            description=(
+                "指定した候補者に添付されているファイル（履歴書・職務経歴書等）の一覧（ID・ファイル名のみ）を"
+                "取得する。candidate_id は list_candidates のレスポンスの id 値を指定する。本APIはファイル名の"
+                "一覧のみを返し、ファイル本体のダウンロードURLは含まれない。読み取り専用で書き込みは行わない"
+                "（添付ファイルの追加・削除 API は存在するが、本コネクタは読み取り中心の方針のため未実装）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "candidate_id": {"type": "string", "description": "候補者ID（list_candidates で取得）"},
+                },
+                "required": ["candidate_id"],
+            },
+        ),
     ]
 
 
@@ -246,6 +433,80 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             elif name == "get_job":
                 r = client.get(f"/requisitions/{arguments['job_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_job_titles":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/job_titles", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_candidate_channels":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/candidate_channels", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_form_templates":
+                params = {"page": arguments.get("page", 1)}
+                r = client.get("/form_templates", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_employees":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("role"):
+                    params["role"] = arguments["role"]
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/employees", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_employee_groups":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/employee_groups", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_workspaces":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/workspaces", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_deleted_candidates":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("deleted_at_from"):
+                    params["deletedAtFrom"] = arguments["deleted_at_from"]
+                if arguments.get("deleted_at_to"):
+                    params["deletedAtTo"] = arguments["deleted_at_to"]
+                r = client.get("/candidates/deleted", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_candidate_comments":
+                r = client.get(f"/candidates/{arguments['candidate_id']}/comments")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_candidate_attachments":
+                r = client.get(f"/candidates/{arguments['candidate_id']}/attachments")
                 r.raise_for_status()
                 return format_response(r.json())
 
