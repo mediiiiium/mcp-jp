@@ -28,6 +28,10 @@ def _client() -> httpx.Client:
     )
 
 
+def _csv(values) -> str:
+    return ",".join(str(v) for v in values)
+
+
 @app.list_tools()
 async def list_tools() -> list[types.Tool]:
     return [
@@ -144,6 +148,141 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["name"],
             },
         ),
+        types.Tool(
+            name="get_client",
+            description=(
+                "指定した1件の顧客（取引先）の詳細情報を取得する。list_clients の一覧レスポンスは基本情報"
+                "（small相当）のみだが、本ツールは response_group=large を指定することで住所・電話番号・"
+                "支払条件・適格請求書発行事業者番号などすべての項目を取得できる。client_id は list_clients の"
+                "レスポンスの id 値を指定する。読み取り専用。顧客の更新・削除エンドポイントも board API には"
+                "存在するが、本コネクタには実装されていない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "integer", "description": "取得する顧客のID（list_clients で確認）"},
+                },
+                "required": ["client_id"],
+            },
+        ),
+        types.Tool(
+            name="list_client_branches",
+            description=(
+                "顧客（取引先）の支社・支店の一覧を取得する。本社とは別の請求先・納品先住所を管理している"
+                "取引先の支社情報を確認したい場合に使う。client_id で特定顧客に紐づく支社のみに絞り込める。"
+                "ページネーションは page/per_page 方式（既定 page=1, per_page=20。board API 側の上限は"
+                "per_page=100）。読み取り専用。顧客支社の作成・更新・削除エンドポイントも board API には"
+                "存在するが、本コネクタには実装されていない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
+                    "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
+                    "client_id": {"type": "integer", "description": "この顧客IDに紐づく支社のみに絞り込む"},
+                    "include_archive": {"type": "boolean", "description": "アーカイブ済みの支社も含めて返す（既定false）"},
+                },
+            },
+        ),
+        types.Tool(
+            name="list_contacts",
+            description=(
+                "顧客（取引先）の担当者一覧を取得する。取引先の窓口担当者の氏名・部署・メールアドレスを"
+                "確認したい場合に使う。client_id で特定顧客に紐づく担当者のみに絞り込める。ページネーションは"
+                "page/per_page 方式（既定 page=1, per_page=20。board API 側の上限は per_page=100）。"
+                "読み取り専用。顧客担当者の作成・更新・削除エンドポイントも board API には存在するが、"
+                "本コネクタには実装されていない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
+                    "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
+                    "client_id": {"type": "integer", "description": "この顧客IDに紐づく担当者のみに絞り込む"},
+                    "include_archive": {"type": "boolean", "description": "アーカイブ済みの担当者も含めて返す（既定false）"},
+                },
+            },
+        ),
+        types.Tool(
+            name="list_project_costs",
+            description=(
+                "案件原価データの一覧を取得する。get_project を response_group=project_cost で呼ぶと1案件分の"
+                "原価しか取れないが、本ツールは project_id 未指定で全案件横断の原価一覧を取得でき、請求日・"
+                "支払日の範囲で絞り込める点が異なる。案件横断でのコスト状況の棚卸しに使う。ページネーションは"
+                "page/per_page 方式（既定 page=1, per_page=20。board API 側の上限は per_page=100）。"
+                "読み取り専用。案件原価の作成・更新・削除エンドポイントも board API には存在するが、"
+                "本コネクタには実装されていない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
+                    "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
+                    "project_id": {"type": "integer", "description": "このプロジェクトIDに紐づく原価のみに絞り込む"},
+                    "invoice_date_from": {"type": "string", "description": "請求日の範囲開始（YYYY-MM-DD）"},
+                    "invoice_date_to": {"type": "string", "description": "請求日の範囲終了（YYYY-MM-DD）"},
+                    "payment_date_from": {"type": "string", "description": "支払日の範囲開始（YYYY-MM-DD）"},
+                    "payment_date_to": {"type": "string", "description": "支払日の範囲終了（YYYY-MM-DD）"},
+                },
+            },
+        ),
+        types.Tool(
+            name="list_users",
+            description=(
+                "board 利用ユーザー（社内アカウント）の一覧を取得する。プロジェクトの担当者を確認・特定する"
+                "用途に使う。email で完全一致検索できる。ページネーションは page/per_page 方式（既定 page=1,"
+                " per_page=20。board API 側の上限は per_page=100）。読み取り専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
+                    "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
+                    "email": {"type": "string", "description": "メールアドレスの完全一致で絞り込む"},
+                },
+            },
+        ),
+        types.Tool(
+            name="list_analyses",
+            description=(
+                "計上データ（経営分析用の集計データ）の一覧を取得する。案件・案件原価・発注のいずれかの"
+                "計上データを、計上年月・受注ステータス・請求ステータスなどで横断的に絞り込んで取得できる。"
+                "月次の売上・原価・利益の棚卸しなど経営分析用途に使う。analysis_data_kbn で計上データ区分"
+                "（1=案件, 2=案件原価, 3=発注）を指定しないと全種別が混在して返る点に注意。ページネーションは"
+                "page/per_page 方式（既定 page=1, per_page=20。board API 側の上限は per_page=100）。"
+                "読み取り専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
+                    "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
+                    "report_ym_from": {"type": "string", "description": "計上年月の範囲開始（YYYY-MM）"},
+                    "report_ym_to": {"type": "string", "description": "計上年月の範囲終了（YYYY-MM）"},
+                    "analysis_data_kbn": {
+                        "type": "array",
+                        "items": {"type": "integer", "enum": [1, 2, 3]},
+                        "description": "計上データ区分で絞り込む（1=案件 / 2=案件原価 / 3=発注）。複数指定可。省略時は全種別",
+                    },
+                    "order_status": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": (
+                            "受注ステータスで絞り込む（1=見積中(高) / 2=見積中(中) / 3=見積中(低) / "
+                            "8=見積中(除) / 4=受注確定 / 5=受注済 / 9=失注）。複数指定可"
+                        ),
+                    },
+                    "invoice_status": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": (
+                            "請求ステータスで絞り込む（1=未請求 / 4=請求OK / 2=請求済 / 5=一部入金済 / "
+                            "3=入金済 / 9=回収不能）。複数指定可"
+                        ),
+                    },
+                },
+            },
+        ),
     ]
 
 
@@ -207,6 +346,86 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if arguments.get("budget") is not None:
                     payload["budget"] = arguments["budget"]
                 r = client.post("/projects", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_client":
+                r = client.get(f"/clients/{arguments['client_id']}", params={"response_group": "large"})
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_client_branches":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("client_id"):
+                    params["client_id_eq"] = arguments["client_id"]
+                if arguments.get("include_archive") is not None:
+                    params["include_archive_flg"] = 1 if arguments["include_archive"] else 0
+                r = client.get("/client_branches", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_contacts":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("client_id"):
+                    params["client_id_eq"] = arguments["client_id"]
+                if arguments.get("include_archive") is not None:
+                    params["include_archive_flg"] = 1 if arguments["include_archive"] else 0
+                r = client.get("/contacts", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_project_costs":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("project_id"):
+                    params["project_id_eq"] = arguments["project_id"]
+                if arguments.get("invoice_date_from"):
+                    params["invoice_date_gteq"] = arguments["invoice_date_from"]
+                if arguments.get("invoice_date_to"):
+                    params["invoice_date_lteq"] = arguments["invoice_date_to"]
+                if arguments.get("payment_date_from"):
+                    params["payment_date_gteq"] = arguments["payment_date_from"]
+                if arguments.get("payment_date_to"):
+                    params["payment_date_lteq"] = arguments["payment_date_to"]
+                r = client.get("/project_costs", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_users":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("email"):
+                    params["email_eq"] = arguments["email"]
+                r = client.get("/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_analyses":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 20),
+                }
+                if arguments.get("report_ym_from"):
+                    params["report_ym_gteq"] = arguments["report_ym_from"]
+                if arguments.get("report_ym_to"):
+                    params["report_ym_lteq"] = arguments["report_ym_to"]
+                if arguments.get("analysis_data_kbn"):
+                    params["analysis_data_kbn_in[]"] = _csv(arguments["analysis_data_kbn"])
+                if arguments.get("order_status"):
+                    params["order_status_in[]"] = _csv(arguments["order_status"])
+                if arguments.get("invoice_status"):
+                    params["invoice_status_in[]"] = _csv(arguments["invoice_status"])
+                r = client.get("/analyses", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
 

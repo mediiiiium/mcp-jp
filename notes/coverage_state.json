@@ -36,17 +36,23 @@
       "notes": "2026-07-05深掘り: docs.thebase.in/api/ は公式で健在、各エンドポイントの個別ページ（例 /api/categories/, /api/savings/）にパラメータ・レスポンス例・スコープが明記されており信頼できる。get_item(items/detail)・search_items(items/search)・list_categories(categories/)・get_item_categories(item_categories/detail)・list_savings(savings/, read_savingsスコープ必須)・list_delivery_companies(delivery_companies/, スコープ指定なし)を追加、全て読み取り専用でドキュメント記載のパラメータ/レスポンス/スコープを確認済み。見送り: items/add等の商品書き込み系、categories/add等のカテゴリ書き込み系、item_categories/add等（実在は確認済みだが書き込み系は監査前提の方針により今回は対象外）。search/（グローバル検索）は2022年2月で新規受付終了とドキュメント記載のため未実装。次回はitems書き込み系（add/edit/delete等）の要否を検討する余地あり。"
     },
     "board": {
-      "tool_count": 5,
+      "tool_count": 11,
       "tools": [
         "list_clients",
         "list_projects",
         "get_project",
         "list_invoices",
-        "create_project"
+        "create_project",
+        "get_client",
+        "list_client_branches",
+        "list_contacts",
+        "list_project_costs",
+        "list_users",
+        "list_analyses"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://developers.the-board.jp/doc/",
+      "last_deep_check": "2026-07-05",
+      "notes": "2026-07-05深掘り: 公式APIドキュメント(https://developers.the-board.jp/doc/、Redoc/OpenAPI3.0形式)をHTML内埋め込みJSON(__redoc_state)から全パス取得し確認。読み取り専用で以下6ツールを追加: get_client(顧客詳細/clients/{id}、response_group=large)、list_client_branches(顧客支社一覧/client_branches)、list_contacts(顧客担当者一覧/contacts)、list_project_costs(案件原価一覧・案件横断/project_costs)、list_users(ユーザー一覧/users)、list_analyses(計上データ一覧/analyses)。見送り: 発注管理ドメイン一式(payees/expenditures/expenditure_payments、書類含む。エンドポイント実在は確認済みだが既存コネクタが受注ドメイン中心の設計のためスコープ外)、マスタ末端データ(groups/payment_terms/project_types/expenditure_types/accounting_types/document_send_channels、利用頻度が低い設定値マスタ)、書類個別取得API(documents/estimates等、get_projectのresponse_groupで代替可能)、顧客支社/顧客担当者の個別詳細取得(一覧で十分な項目が取得できるため)、書き込み系全般(clients/projects/project_costs等のPOST・PATCH・DELETE、実在確認済みだが読み取り中心の方針のため見送り)。"
     },
     "cloudsign": {
       "tool_count": 5,
