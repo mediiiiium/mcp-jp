@@ -2,17 +2,19 @@
   "generated": "2026-07-05",
   "connectors": {
     "akashi": {
-      "tool_count": 5,
+      "tool_count": 7,
       "tools": [
         "get_stamps",
         "post_stamp",
         "list_staffs",
         "get_staff",
-        "get_alerts"
+        "get_alerts",
+        "get_working_records",
+        "search_working_statuses"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://akashi.zendesk.com/hc/ja/articles/115000475854-AKASHI-%E5%85%AC%E9%96%8BAPI-%E4%BB%95%E6%A7%98",
+      "last_deep_check": "2026-07-05",
+      "notes": "2026-07-05深掘り: docs_url は Cloudflare bot対策で直接WebFetch/curl/ブラウザいずれも403、r.jina.ai経由で全文(6.1〜6.32)取得し確認。get_working_records(勤務実績取得・複数従業員/working_records)とsearch_working_statuses(勤務処理取得/working_statuses/search)を追加。get_alertsのアラート種別descriptionを1-10→1-28に修正（旧記述は不正確だった）。見送り: multiple_stamps(複数従業員打刻取得、優先度低くget_working_recordsで代替可)、従業員登録/更新/退職/削除、working_statuses/update(勤務処理更新・書き込み系)、組織/プロジェクト/タスク/工数管理系(6.1-6.3,6.12-6.30。エンドポイント実在は確認済みだが工数管理オプション領域で書き込み系中心のため見送り、需要があれば読み取り系から再検討)、token/reissue(環境変数にトークンを永続化する手段がなくツール化しても効果が繋がらない)。"
     },
     "base-ec": {
       "tool_count": 11,

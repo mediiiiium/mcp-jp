@@ -147,14 +147,90 @@ async def list_tools() -> list[types.Tool]:
             name="get_alerts",
             description=(
                 "トークンに紐づく従業員本人の勤怠アラート一覧を取得する。アラート種別は "
-                "1=打刻忘れ, 2=欠勤疑い, 3=休憩過小/超過, 4=出勤打刻乖離, 5=退勤打刻乖離, 6=休日出勤, 7=遅刻, "
-                "8=早退, 9=残業時間閾値超え, 10=無断出勤 のいずれか。日付範囲や従業員IDによる絞り込みパラメータは"
-                "APIとして提供されておらず、常にトークンに紐づく本人分の全アラートが返る。ページネーションもない。"
-                "書き込みは行わない。"
+                "1=打刻忘れ, 2=欠勤疑い, 3=休憩過小/超過, 4=早すぎる出勤(予定-実績), 5=遅すぎる退勤(予定-実績), "
+                "6=休日出勤, 7=遅刻, 8=早退, 9=残業時間閾値超え, 10=無断出勤, 11=深夜労働, 12=週次実働時間閾値超え, "
+                "13=36協定, 14=インターバル, 15=見込み時間外閾値超え(実績値), 16=早入り, 17=居残り, "
+                "18=労働日見込み時間外閾値超え(入力値), 19=見込み時間外閾値超え(入力値), 20=早すぎる出勤(IN-実績), "
+                "21=遅すぎる退勤(OUT-実績), 22=工数未入力, 24=指示なし残業, 25=1週1休日, 26=入力違反, "
+                "27=フレキシブルタイム違反, 28=休憩時間不足（23番は公式ドキュメント上欠番）。日付範囲や従業員IDに"
+                "よる絞り込みパラメータはAPIとして提供されておらず、常にトークンに紐づく本人分の全アラートが返る。"
+                "ページネーションもない。書き込みは行わない。"
             ),
             inputSchema={
                 "type": "object",
                 "properties": {},
+            },
+        ),
+        types.Tool(
+            name="get_working_records",
+            description=(
+                "管理下の複数従業員（最大50名）について、指定期間の勤務実績（実績の出退勤時刻・丸め後時刻・"
+                "実働時間・休憩実績など）を取得する。get_stamps が生の打刻イベントを返すのに対し、こちらは"
+                "会社側の集計ルール（丸め等）を反映した後の勤務実績を返す点が異なる。start_date のみ指定した"
+                "場合は当日、end_date まで指定した場合は最長31日分を取得できる。include_break_results=true の"
+                "場合は休憩実績が含まれるが、この場合 end_date は指定できない（API側の制約）。書き込みは"
+                "行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "staff_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "取得対象の従業員IDの配列（従業員番号ではない）。最大50件まで。",
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "取得開始日（yyyymmdd形式、例: 20240101）。",
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "取得終了日（yyyymmdd形式、例: 20240131）。start_date〜end_dateは最長31日まで。include_break_resultsをtrueにする場合は指定できない。",
+                    },
+                    "include_break_results": {
+                        "type": "boolean",
+                        "description": "true の場合、休憩実績（休憩開始・終了時刻）を勤務実績に含める。この場合 end_date は指定不可。",
+                    },
+                    "include_actual_working_hours_no_rounding": {
+                        "type": "boolean",
+                        "description": "true の場合、丸め処理前の実働時間（分単位）を勤務実績に含める。",
+                    },
+                },
+                "required": ["staff_ids", "start_date"],
+            },
+        ),
+        types.Tool(
+            name="search_working_statuses",
+            description=(
+                "指定した従業員ID・日付の組み合わせ（最大1000件）について、その日に設定されている勤務処理"
+                "ラベル（例: 欠勤・出張・テレワークなど、企業ごとにカスタム設定された文字列）を一括取得する。"
+                "ラベルの内容は企業ごとのカスタム勤務処理リストに依存するため固定の列挙値ではない。書き込みは"
+                "行わない（勤務処理を変更する更新APIは Akashi 側に存在するが、業務データを直接書き換える操作の"
+                "ため本コネクタでは未実装）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "search": {
+                        "type": "array",
+                        "description": "取得したい従業員ID・日付の組み合わせのリスト（最大1000件）。",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "staff_id": {
+                                    "type": "string",
+                                    "description": "勤務処理を取得する従業員ID（従業員番号ではない）。",
+                                },
+                                "date": {
+                                    "type": "string",
+                                    "description": "取得対象の日付（YYYY-MM-DD形式）。",
+                                },
+                            },
+                            "required": ["staff_id", "date"],
+                        },
+                    },
+                },
+                "required": ["search"],
             },
         ),
     ]
@@ -199,6 +275,28 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         elif name == "get_alerts":
             result = _get(f"/{company_id}/alerts")
+            return format_response(result)
+
+        elif name == "get_working_records":
+            params = {
+                "staff_ids": ",".join(str(i) for i in arguments["staff_ids"]),
+                "start_date": arguments["start_date"],
+            }
+            if arguments.get("end_date"):
+                params["end_date"] = arguments["end_date"]
+            if arguments.get("include_break_results"):
+                params["include_break_results"] = 1
+            if arguments.get("include_actual_working_hours_no_rounding"):
+                params["include_actual_working_hours_no_rounding"] = 1
+            result = _get(f"/{company_id}/working_records", params)
+            return format_response(result)
+
+        elif name == "search_working_statuses":
+            body = {
+                "login_company_code": company_id,
+                "search": arguments["search"],
+            }
+            result = _post("/working_statuses/search", body)
             return format_response(result)
 
         else:
