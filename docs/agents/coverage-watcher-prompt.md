@@ -26,8 +26,9 @@ lstep の深掘りでは、公式ドキュメント（docs.lineml.jp）を精査
 1. 前提を読む。
    - `docs/strategy.md` — このリポジトリの品質基準（「載せたものは全部ちゃんと動く」
      を本数より優先する、書き込み系は監査・確認前提で慎重に扱う、等）。
-   - `{connector}/src/{connector}_mcp/server.py` — 現在実装済みのツール一覧・
-     エンドポイントの叩き方。
+   - `{connector}/src/<パッケージ名>/server.py` — 現在実装済みのツール一覧・
+     エンドポイントの叩き方。パッケージ名はディレクトリ名と機械的に一致しない
+     場合がある（例: `base-ec` → `base_ec_mcp`）ので `src/` 配下を実際に確認する。
    - `{connector}/README.md` — ツール一覧、既知の制約セクション（すでに
      「実在が確認できず見送った」機能が書かれていないか）。
    - `notes/coverage_state.json` の `connectors.{connector}` — 前回までの

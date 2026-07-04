@@ -268,7 +268,7 @@
       ],
       "docs_url": "https://docs.lineml.jp/",
       "last_deep_check": "2026-07-03",
-      "notes": "list_friends/list_templates/upload_media 追加済み。get_friend（友だち単体取得）とメッセージ送信系は docs.lineml.jp で実在確認できず見送り。"
+      "notes": "2026-07-03深掘り: list_templates/upload_media を追加。get_friend（友だち単体取得）とメッセージ送信系は docs.lineml.jp で実在確認できず見送り。"
     },
     "makeleaps": {
       "tool_count": 6,
