@@ -219,6 +219,121 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="get_organizations",
+            description=(
+                "Garoon に登録されている組織（部署）の一覧を、組織名の部分一致検索で取得する"
+                "（/base/organizations エンドポイントを使用、管理者権限は不要）。各組織の親組織ID・"
+                "子組織ID一覧も返るため、組織階層の把握や get_organization_users で使う組織IDの特定に使う。"
+                "ページネーションは offset/limit 方式：レスポンスの hasNext が true の場合、offset を"
+                "積み増して再取得する。Garoon API上の上限は1回1000件・省略時100件だが、本ツールの"
+                "limit 省略時デフォルトは50件。読み取り専用で副作用はない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "組織名で部分一致絞り込み",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "取得件数（Garoon API上の上限1000件）。本ツールでの省略時デフォルトは50件。",
+                        "default": 50,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "取得開始位置（デフォルト0）。前回レスポンスの hasNext が true の場合、続きを取るには offset を積み増して再取得する。",
+                        "default": 0,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_organization_users",
+            description=(
+                "指定した組織（部署）に所属するユーザーの一覧を取得する"
+                "（/base/organizations/{organization_id}/users エンドポイントを使用、管理者権限は不要）。"
+                "組織IDは get_organizations で調べられる。「営業部のメンバーを教えて」のように部署単位で"
+                "人を特定したいときに、list_users の名前検索より確実に使える。ページネーションは"
+                "offset/limit 方式：レスポンスの hasNext が true の場合、offset を積み増して再取得する。"
+                "Garoon API上の上限は1回1000件・省略時100件だが、本ツールの limit 省略時デフォルトは"
+                "50件。読み取り専用で副作用はない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "organization_id": {
+                        "type": "string",
+                        "description": "所属ユーザーを取得したい組織のID（get_organizations で調べられる）",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "取得件数（Garoon API上の上限1000件）。本ツールでの省略時デフォルトは50件。",
+                        "default": 50,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "取得開始位置（デフォルト0）。前回レスポンスの hasNext が true の場合、続きを取るには offset を積み増して再取得する。",
+                        "default": 0,
+                    },
+                },
+                "required": ["organization_id"],
+            },
+        ),
+        types.Tool(
+            name="get_workflow_request",
+            description=(
+                "ワークフロー申請を1件、申請ID指定で詳細取得する（/workflow/requests/{request_id}"
+                "エンドポイントを使用）。list_workflow_requests とは異なり管理者権限は不要で、"
+                "そのリクエストへのアクセス権（申請者本人・処理経路上の承認者など）があれば取得できる。"
+                "申請者情報・ステータス・カスタム項目（items）・処理ステップ（steps）を含む詳細を返す"
+                "（folder と availableOperations は Garoon API の仕様上このエンドポイントでは取得できない）。"
+                "「自分が出したこの申請の状況を見せて」のような一般ユーザー視点の確認に使う。読み取り専用で"
+                "副作用はない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "request_id": {
+                        "type": "string",
+                        "description": "取得したいワークフロー申請のID",
+                    },
+                },
+                "required": ["request_id"],
+            },
+        ),
+        types.Tool(
+            name="get_facilities",
+            description=(
+                "Garoon スケジュールで予定に紐づけられる施設（会議室等）の一覧を、施設名の部分一致検索で"
+                "取得する（/schedule/facilities エンドポイントを使用、管理者権限は不要）。各施設のID・名前・"
+                "コード・メモ・所属する施設グループIDを返す。本コネクタの create_event は施設指定に未対応"
+                "だが、施設の存在確認や「会議室の一覧を教えて」のような棚卸しには使える。ページネーションは"
+                "offset/limit 方式：レスポンスの hasNext が true の場合、offset を積み増して再取得する。"
+                "Garoon API上の上限は1回1000件・省略時100件だが、本ツールの limit 省略時デフォルトは"
+                "50件。読み取り専用で副作用はない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "施設名で部分一致絞り込み",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "取得件数（Garoon API上の上限1000件）。本ツールでの省略時デフォルトは50件。",
+                        "default": 50,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "取得開始位置（デフォルト0）。前回レスポンスの hasNext が true の場合、続きを取るには offset を積み増して再取得する。",
+                        "default": 0,
+                    },
+                },
+            },
+        ),
+        types.Tool(
             name="get_presence",
             description=(
                 "指定した1ユーザーの在席状況（レスポンスの status.code。attend=在席 / absence=不在 / "
@@ -300,6 +415,44 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if arguments.get("status"):
                     params["status"] = arguments["status"]
                 r = client.get("/workflow/admin/requests", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_organizations":
+                params = {
+                    "limit": arguments.get("limit", 50),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                r = client.get("/base/organizations", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_organization_users":
+                organization_id = arguments["organization_id"]
+                params = {
+                    "limit": arguments.get("limit", 50),
+                    "offset": arguments.get("offset", 0),
+                }
+                r = client.get(f"/base/organizations/{organization_id}/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_workflow_request":
+                request_id = arguments["request_id"]
+                r = client.get(f"/workflow/requests/{request_id}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_facilities":
+                params = {
+                    "limit": arguments.get("limit", 50),
+                    "offset": arguments.get("offset", 0),
+                }
+                if arguments.get("name"):
+                    params["name"] = arguments["name"]
+                r = client.get("/schedule/facilities", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
 
