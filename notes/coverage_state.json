@@ -1,0 +1,487 @@
+{
+  "generated": "2026-07-05",
+  "connectors": {
+    "akashi": {
+      "tool_count": 5,
+      "tools": [
+        "get_stamps",
+        "post_stamp",
+        "list_staffs",
+        "get_staff",
+        "get_alerts"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "base-ec": {
+      "tool_count": 5,
+      "tools": [
+        "get_shop",
+        "list_items",
+        "list_orders",
+        "get_order",
+        "update_order_status"
+      ],
+      "docs_url": "https://docs.thebase.in/api/",
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "board": {
+      "tool_count": 5,
+      "tools": [
+        "list_clients",
+        "list_projects",
+        "get_project",
+        "list_invoices",
+        "create_project"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "cloudsign": {
+      "tool_count": 5,
+      "tools": [
+        "list_documents",
+        "get_document",
+        "create_document",
+        "set_participants",
+        "send_document"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "esa": {
+      "tool_count": 5,
+      "tools": [
+        "list_posts",
+        "get_post",
+        "create_post",
+        "update_post",
+        "list_comments"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "freshdesk": {
+      "tool_count": 7,
+      "tools": [
+        "list_tickets",
+        "get_ticket",
+        "create_ticket",
+        "delete_ticket",
+        "list_contacts",
+        "get_contact",
+        "delete_contact"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "garoon": {
+      "tool_count": 5,
+      "tools": [
+        "list_events",
+        "create_event",
+        "list_users",
+        "list_workflow_requests",
+        "get_presence"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "harvest": {
+      "tool_count": 7,
+      "tools": [
+        "list_projects",
+        "list_time_entries",
+        "create_time_entry",
+        "update_time_entry",
+        "delete_time_entry",
+        "list_clients",
+        "list_invoices"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "herp": {
+      "tool_count": 5,
+      "tools": [
+        "list_candidacies",
+        "get_candidacy",
+        "list_requisitions",
+        "list_timeline_comments",
+        "add_timeline_comment"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "hrmos-kintai": {
+      "tool_count": 5,
+      "tools": [
+        "get_monthly_attendance",
+        "get_daily_attendance",
+        "list_users",
+        "list_departments",
+        "get_user_stamps"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "intercom": {
+      "tool_count": 6,
+      "tools": [
+        "list_contacts",
+        "search_contacts",
+        "get_contact",
+        "create_contact",
+        "delete_contact",
+        "list_conversations"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "invox": {
+      "tool_count": 5,
+      "tools": [
+        "list_received_invoices",
+        "get_received_invoice",
+        "approve_received_invoice",
+        "list_suppliers",
+        "export_journal"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "jobcan-workflow": {
+      "tool_count": 5,
+      "tools": [
+        "list_requests",
+        "get_request",
+        "list_users",
+        "list_projects",
+        "list_companies"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "jooto": {
+      "tool_count": 6,
+      "tools": [
+        "get_organization",
+        "list_boards",
+        "list_lists",
+        "list_tasks",
+        "create_task",
+        "get_task"
+      ],
+      "docs_url": "https://www.jooto.com/api/reference/request/",
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "kaonavi": {
+      "tool_count": 5,
+      "tools": [
+        "list_members",
+        "get_member",
+        "list_departments",
+        "list_layouts",
+        "get_sheet"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "karte": {
+      "tool_count": 5,
+      "tools": [
+        "track_event",
+        "get_user_events",
+        "track_event_exec_action",
+        "get_campaign",
+        "get_campaign_stats"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "kingtime": {
+      "tool_count": 5,
+      "tools": [
+        "get_employees",
+        "get_daily_workings",
+        "get_monthly_workings",
+        "get_daily_schedules",
+        "record_time"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "lineworks": {
+      "tool_count": 5,
+      "tools": [
+        "get_channel",
+        "send_channel_message",
+        "send_user_message",
+        "list_members",
+        "get_member"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "lstep": {
+      "tool_count": 21,
+      "tools": [
+        "list_friends",
+        "add_tag_to_friend",
+        "remove_tag_from_friend",
+        "set_response_mark",
+        "create_friend_info_folder",
+        "create_friend_info",
+        "list_tag_folders",
+        "create_tag_folder",
+        "list_tags",
+        "create_tag",
+        "update_tag",
+        "list_friends_by_tag",
+        "bulk_add_tag",
+        "bulk_remove_tag",
+        "list_taiou_marks",
+        "get_message_history",
+        "list_common_info_folders",
+        "list_common_infos",
+        "update_common_info",
+        "list_templates",
+        "upload_media"
+      ],
+      "docs_url": "https://docs.lineml.jp/",
+      "last_deep_check": "2026-07-03",
+      "notes": "list_friends/list_templates/upload_media 追加済み。get_friend（友だち単体取得）とメッセージ送信系は docs.lineml.jp で実在確認できず見送り。"
+    },
+    "makeleaps": {
+      "tool_count": 6,
+      "tools": [
+        "list_clients",
+        "list_documents",
+        "get_document",
+        "list_document_templates",
+        "create_document",
+        "send_document"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "mazrica": {
+      "tool_count": 7,
+      "tools": [
+        "list_customers",
+        "create_customer",
+        "list_deals",
+        "create_deal",
+        "list_deal_types",
+        "get_deal_type",
+        "list_users"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "misoca": {
+      "tool_count": 11,
+      "tools": [
+        "list_invoices",
+        "get_invoice",
+        "create_invoice",
+        "mark_invoice_paid",
+        "mark_invoice_unpaid",
+        "mark_invoice_submitted",
+        "mark_invoice_unsubmitted",
+        "trash_invoice",
+        "restore_invoice",
+        "list_contact_groups",
+        "list_contacts"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "notepm": {
+      "tool_count": 5,
+      "tools": [
+        "list_notes",
+        "search_pages",
+        "get_page",
+        "create_page",
+        "update_page"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "payjp": {
+      "tool_count": 5,
+      "tools": [
+        "list_charges",
+        "get_charge",
+        "refund_charge",
+        "list_customers",
+        "list_subscriptions"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "pipedrive": {
+      "tool_count": 5,
+      "tools": [
+        "list_persons",
+        "search_persons",
+        "list_deals",
+        "create_deal",
+        "list_activities"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "relation": {
+      "tool_count": 5,
+      "tools": [
+        "list_message_boxes",
+        "search_tickets",
+        "get_ticket",
+        "create_reply_memo",
+        "list_users"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "sendgrid": {
+      "tool_count": 5,
+      "tools": [
+        "send_email",
+        "get_stats",
+        "list_bounces",
+        "list_unsubscribes",
+        "list_templates"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "smaregi": {
+      "tool_count": 5,
+      "tools": [
+        "list_products",
+        "get_product",
+        "list_transactions",
+        "list_customers",
+        "list_stores"
+      ],
+      "docs_url": "https://developers.smaregi.dev/platform-api-reference/",
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "smarthr": {
+      "tool_count": 5,
+      "tools": [
+        "list_crews",
+        "get_crew",
+        "list_departments",
+        "list_employment_types",
+        "update_crew"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "talentio": {
+      "tool_count": 4,
+      "tools": [
+        "list_candidates",
+        "get_candidate",
+        "list_jobs",
+        "get_job"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "toggl": {
+      "tool_count": 9,
+      "tools": [
+        "get_profile",
+        "list_workspaces",
+        "list_projects",
+        "list_clients",
+        "list_time_entries",
+        "create_time_entry",
+        "update_time_entry",
+        "stop_time_entry",
+        "delete_time_entry"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "trello": {
+      "tool_count": 5,
+      "tools": [
+        "list_boards",
+        "list_lists",
+        "list_cards",
+        "create_card",
+        "move_card"
+      ],
+      "docs_url": "https://developer.atlassian.com/cloud/trello/rest/",
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "typeform": {
+      "tool_count": 5,
+      "tools": [
+        "list_forms",
+        "get_form",
+        "get_responses",
+        "list_workspaces",
+        "get_response_summary"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    },
+    "yappli-crm": {
+      "tool_count": 11,
+      "tools": [
+        "list_users",
+        "get_user",
+        "get_user_by_unique_id",
+        "get_user_by_external_id",
+        "create_user",
+        "update_user",
+        "delete_external_id",
+        "get_user_points",
+        "get_points_expired_list",
+        "add_user_points",
+        "calculate_points"
+      ],
+      "docs_url": null,
+      "last_deep_check": null,
+      "notes": ""
+    }
+  }
+}

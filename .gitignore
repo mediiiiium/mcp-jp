@@ -1,9 +1,11 @@
 notes/*
 !notes/candidates_state.json
 !notes/mcp_trend_state.json
+!notes/coverage_state.json
 scripts/*
 !scripts/discover_candidates.py
 !scripts/mcp_trend_digest.py
+!scripts/coverage_inventory.py
 .DS_Store
 .venv*/
 __pycache__/
