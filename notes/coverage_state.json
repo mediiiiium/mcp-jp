@@ -102,17 +102,21 @@
       "notes": ""
     },
     "garoon": {
-      "tool_count": 5,
+      "tool_count": 9,
       "tools": [
         "list_events",
         "create_event",
         "list_users",
         "list_workflow_requests",
-        "get_presence"
+        "get_workflow_request",
+        "get_presence",
+        "get_organizations",
+        "get_organization_users",
+        "get_facilities"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://cybozu.dev/ja/garoon/docs/rest-api/",
+      "last_deep_check": "2026-07-05",
+      "notes": "追加: get_organizations(GET /base/organizations), get_organization_users(GET /base/organizations/{id}/users), get_workflow_request(GET /workflow/requests/{id}, 管理者権限不要でlist_workflow_requestsの管理者専用制約を補完), get_facilities(GET /schedule/facilities)。全て公式ドキュメントでメソッド+パス+レスポンス構造を確認済みの読み取り専用。見送り: ToDoリスト(単体取得のみで一覧APIがなく実用性低い)、掲示板/メッセージ/スペース/通知(社内SNS的領域で業務コアから外れる上、書き込み系は慎重方針のため今回は読み取り含め対象外)。詳細はgaroon/README.mdの既知の制約参照。"
     },
     "harvest": {
       "tool_count": 7,
