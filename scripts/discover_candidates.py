@@ -108,7 +108,8 @@ IMPLEMENTED_DOMAINS = {
     "worksmobile.com",   # lineworks
     "worksapis.com",     # lineworks
     "lineml.jp",         # lstep
-    "makeleaps.com",     # makeleaps
+    "makeleaps.com",     # makeleaps（APIドメイン）
+    "makeleaps.jp",      # makeleaps（マーケサイト。PRONIからはこちらが解決される）
     "mazrica.com",       # mazrica
     "misoca.jp",         # misoca
     "notepm.jp",         # notepm
@@ -235,7 +236,9 @@ def fetch_services(category_slug: str, category_name: str) -> list[dict]:
         seen_ids.add(service_id)
 
         raw = a.get_text(strip=True)
-        name = re.split(r"[（出典提供詳細\n]", raw)[0].strip()
+        # 文字クラス [出典提供詳細] だと1文字ごとに分割され、「支出」「提携」等を
+        # 含むサービス名がその1文字目で切れてしまう。単語単位で区切る。
+        name = re.split(r"（|出典|提供|詳細|\n", raw)[0].strip()
         if not name or len(name) < 2 or name in ("詳細をみる", "もっと見る"):
             continue
 
