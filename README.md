@@ -1,5 +1,7 @@
 # mcp-jp — Japanese SMB SaaS connectors
 
+[![Mentioned in Awesome MCP Servers](https://awesome.re/mentioned-badge.svg)](https://github.com/punkpeye/awesome-mcp-servers)
+
 **日本の SMB 向け SaaS に対応した MCP サーバー集**
 
 Claude などの AI エージェントから、日本のクラウドサービスを自然言語で操作できるようにします。

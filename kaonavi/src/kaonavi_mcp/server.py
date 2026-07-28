@@ -156,6 +156,106 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["sheet_id"],
             },
         ),
+        types.Tool(
+            name="list_member_layouts",
+            description=(
+                "メンバー基本情報側のレイアウト定義（社員コード・氏名・入社日などの基本項目、および基本情報に"
+                "紐づくカスタム項目の定義）を取得する (GET /member_layouts)。list_members が返す member_data の"
+                "各フィールドが「どのラベル・型・選択肢を持つ項目なのか」を確認する目的で使う。レスポンスは"
+                "{code:{name,...}, name, name_kana, mail, department, sub_departments, custom_fields:[{id, name, "
+                "required, type, max_upload_file_size, enum:[...]}]} 形式で、custom_fields の各 id が list_members の"
+                "custom_fields の field_id に対応する。シート側の項目定義は別リソースであり list_layouts"
+                "（GET /sheet_layouts）で取得する（本ツールはあくまでメンバー基本情報側専用）。ページネーション・"
+                "絞り込みパラメータはAPI側に存在せず、常に全項目定義が1回で返る。レイアウト定義の更新APIは"
+                "カオナビ側に存在せず、変更は管理画面から行う。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="list_users",
+            description=(
+                "カオナビのログインユーザー（アカウント）一覧を取得する (GET /users)。ここでいうユーザーは"
+                "「カオナビにログインして操作する管理者・利用者アカウント」であり、list_members が返す"
+                "「従業員としてのメンバー」とは別概念（1メンバーが0～1個のユーザーアカウントを持つ）。"
+                "レスポンスは {user_data:[{id, email, member_code（紐づくメンバーの社員コード、未紐付けはnull）, "
+                "role:{id, name, type}, last_login_at, is_active, password_locked}, ...]} 形式。誰がどのロール"
+                "（権限）でログインできるのか、休眠・ロックされたアカウントがないかの棚卸しに使う。ロールの"
+                "定義そのもの（権限名・種別の一覧）は list_roles で取得する。ページネーション・絞り込みは"
+                "API側に存在せず全ユーザーが1回で返る。ユーザーの登録・更新・削除API "
+                "(POST /users, PATCH /users/{user_id}, DELETE /users/{user_id}) はカオナビ側に存在するが、"
+                "本コネクタは読み取り専用のため未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="list_roles",
+            description=(
+                "カオナビのロール（権限セット）一覧を取得する (GET /roles)。list_users が各ユーザーに対して"
+                "返す role.id が、どの権限名・権限種別を指すのかを引くための参照マスタとして使う。レスポンスは"
+                "{role_data:[{id, name, type}, ...]} 形式で、type は「Adm（管理者ロール）／一般ロール」など"
+                "ロールの区分を表す。ロールの新規作成・更新APIはカオナビの公開APIには用意されておらず、"
+                "ロールの編集は管理画面から行う（そのため本ツールは読み取りのみで過不足ない）。ページネーション・"
+                "絞り込みはAPI側に存在せず全ロールが1回で返る。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="list_enum_options",
+            description=(
+                "マスター情報（プルダウン・ラジオボタン・チェックボックスなど選択式カスタム項目の選択肢マスタ）"
+                "を取得する。custom_field_id を省略すると全選択式項目の選択肢 (GET /enum_options) を、指定すると"
+                "その項目1件分の選択肢 (GET /enum_options/{custom_field_id}) のみを取得する。レスポンスは"
+                "{custom_fields:[{id, name, enum_option_data:[{id, name}]}]} 形式で、members / sheets のデータに"
+                "現れる選択肢の内部ID（enum_option_data の id）を人間可読な選択肢名（name）へ変換する対応表として"
+                "使う。ここで対象になるのは選択式項目のみで、自由記述・数値・日付などの項目は含まれない"
+                "（それらの項目定義自体は list_member_layouts / list_layouts で確認する）。選択肢マスタの更新API "
+                "(PUT /enum_options/{custom_field_id}、Request Bodyに含まれない選択肢は無効化される全置換方式) は"
+                "カオナビ側に存在するが、本コネクタは読み取り専用のため未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "custom_field_id": {
+                        "type": "integer",
+                        "description": "このカスタム項目IDの選択肢のみ取得する（省略時は全選択式項目の選択肢を取得）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_advanced_permissions",
+            description=(
+                "拡張アクセス設定（特定ユーザーに、通常の所属範囲を超えて追加で閲覧・操作を許可する所属コード"
+                "などのアクセス制御設定）を取得する (GET /advanced_permissions/{advanced_type})。advanced_type は"
+                "設定の対象種別で、'member'（メンバー拡張アクセス）または 'department'（所属ツリー拡張アクセス）を"
+                "指定する。レスポンスは {advanced_permission_data:[{user_id, add_codes:[...], exclusion_codes:[...]}]} "
+                "形式で、各ユーザーがどの所属コードを追加許可（add）・除外（exclusion）されているかを表す。誰が"
+                "どこまで見られるのかの権限棚卸し・監査に使う。この機能自体がカオナビの上位プラン・オプションで"
+                "のみ有効な場合があり、無効な環境では権限エラー（403）や空配列が返ることがある。拡張アクセス設定の"
+                "更新API (PUT /advanced_permissions/{advanced_type}) はカオナビ側に存在するが、本コネクタは"
+                "読み取り専用のため未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "advanced_type": {
+                        "type": "string",
+                        "enum": ["member", "department"],
+                        "description": "拡張アクセス設定の対象種別: member（メンバー）/ department（所属ツリー）",
+                    },
+                },
+                "required": ["advanced_type"],
+            },
+        ),
     ]
 
 
@@ -205,6 +305,35 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if updated_since := arguments.get("updated_since"):
                     params["updated_since"] = updated_since
                 r = client.get(f"/sheets/{sheet_id}", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_member_layouts":
+                r = client.get("/member_layouts")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_users":
+                r = client.get("/users")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_roles":
+                r = client.get("/roles")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_enum_options":
+                if custom_field_id := arguments.get("custom_field_id"):
+                    r = client.get(f"/enum_options/{custom_field_id}")
+                else:
+                    r = client.get("/enum_options")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_advanced_permissions":
+                advanced_type = arguments["advanced_type"]
+                r = client.get(f"/advanced_permissions/{advanced_type}")
                 r.raise_for_status()
                 return format_response(r.json())
 

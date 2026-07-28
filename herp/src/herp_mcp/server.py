@@ -142,6 +142,148 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="list_contacts",
+            description=(
+                "応募者1名分のコンタクト（面談・カジュアル面談・面接などの選考記録）を一覧取得する。"
+                "各コンタクトには面談種別・実施日時・担当者・付随する評価などが含まれ、選考の経緯を"
+                "追う目的で使う。candidacy_id は list_candidacies のレスポンスから取得する。API ドキュメントに"
+                "ページネーションの記載がなく、該当応募者の全コンタクトを一度に返す。読み取り専用。"
+                "コンタクトの新規作成API（POST /candidacies/{id}/contacts）は HERP Hire API に存在するが、"
+                "本コネクタは読み取り中心の設計方針のため実装していない（HERP Hire 管理画面から操作する）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "candidacy_id": {"type": "string", "description": "応募ID（list_candidacies で取得）"},
+                },
+                "required": ["candidacy_id"],
+            },
+        ),
+        types.Tool(
+            name="list_candidacy_files",
+            description=(
+                "応募者1名に添付されたファイル（履歴書・職務経歴書・その他添付）のメタ情報一覧を取得する。"
+                "ファイル種別(type)・MIMEタイプ・ファイル名・サイズ・アップロード日時・非公開フラグなどが"
+                "返り、どんな応募書類が登録されているかを確認する目的で使う。candidacy_id は list_candidacies の"
+                "レスポンスから取得する。ページネーションの記載はなく全ファイルのメタ情報を一度に返す。"
+                "読み取り専用。なお個々のファイルの実体（バイナリ）は HERP Hire API では別エンドポイント"
+                "（GET /candidacies/{id}/files/{fileId}）でバイナリ取得する仕様だが、テキストベースの本"
+                "コネクタでは扱えないため実装していない。ファイル追加API（POST）も未実装。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "candidacy_id": {"type": "string", "description": "応募ID（list_candidacies で取得）"},
+                },
+                "required": ["candidacy_id"],
+            },
+        ),
+        types.Tool(
+            name="list_assignments",
+            description=(
+                "応募者1名にアサインされている担当者（selecterや面接官などの社内メンバー）の一覧を取得する。"
+                "各要素は userId とその役割(role)を含み、この選考を誰が担当しているかを確認する目的で使う。"
+                "userId の実名・メールアドレスなどは list_users で突き合わせて解決する。candidacy_id は "
+                "list_candidacies のレスポンスから取得する。読み取り専用。担当者のアサイン追加(POST)・解除"
+                "(DELETE)API は HERP Hire API に存在するが、本コネクタは読み取り中心の設計方針のため実装して"
+                "いない（HERP Hire 管理画面から操作する）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "candidacy_id": {"type": "string", "description": "応募ID（list_candidacies で取得）"},
+                },
+                "required": ["candidacy_id"],
+            },
+        ),
+        types.Tool(
+            name="get_evaluation",
+            description=(
+                "評価依頼1件（evaluation）の詳細を取得する。面接官に依頼された評価の設問と回答内容を確認したい"
+                "場合に使う。evaluation_request_id は、コンタクト（list_contacts）や応募者詳細（get_candidacy）の"
+                "レスポンスに含まれる評価依頼IDを指定する（一覧取得の専用エンドポイントは HERP Hire API に"
+                "存在しないため、評価IDはこれらのレスポンス経由で入手する必要がある）。読み取り専用。評価の"
+                "提出・更新API（PUT /evaluations/{id}）は HERP Hire API に存在するが、本コネクタは読み取り中心の"
+                "設計方針のため実装していない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "evaluation_request_id": {
+                        "type": "string",
+                        "description": "評価依頼ID（get_candidacy や list_contacts のレスポンスから取得）",
+                    },
+                },
+                "required": ["evaluation_request_id"],
+            },
+        ),
+        types.Tool(
+            name="list_requisition_groups",
+            description=(
+                "求人グループ（複数の求人＝requisition をまとめる区分）の一覧を取得する。求人を職種・部門"
+                "などのグループ単位で棚卸ししたい場合や、get_requisition_group に渡す求人グループIDを調べる"
+                "目的で使う。API ドキュメントにページネーション・クエリパラメータの記載がなく、全グループを"
+                "一度に返す。読み取り専用。求人グループの作成・更新・削除APIは HERP Hire API に提供されて"
+                "いないため、本コネクタにも該当ツールはない（HERP Hire 管理画面から操作する）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="get_requisition_group",
+            description=(
+                "求人グループ1件の詳細情報を取得する。list_requisition_groups の一覧には含まれない、"
+                "グループに紐づく求人の内訳などの詳細を確認したい場合に使う。requisition_group_id は "
+                "list_requisition_groups のレスポンスから取得する。読み取り専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "requisition_group_id": {
+                        "type": "string",
+                        "description": "求人グループID（list_requisition_groups で取得）",
+                    },
+                },
+                "required": ["requisition_group_id"],
+            },
+        ),
+        types.Tool(
+            name="list_users",
+            description=(
+                "HERP Hire のユーザー（社内メンバーアカウント）の一覧を取得する。選考担当者やコメントの"
+                "メンション先を特定する用途、list_assignments が返す userId を実名・メールアドレスに突き合わせる"
+                "用途で使う。ページネーションは page 番号方式で、1ページ100件固定（offset/limit は指定できない）。"
+                "応答の hasNextPage が true の場合、page を+1して再度呼び出すと続きが取得できる。status で"
+                "在籍状況（active=有効 / deactivated=無効化済み）、role で権限（admin=管理者 / recruiter=リクルーター"
+                " / assistant=アシスタント / guest=ゲスト）を絞り込める。読み取り専用。ユーザーの作成・更新・削除"
+                "APIは HERP Hire API に提供されていないため、本コネクタにも該当ツールはない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "取得するページ番号（1始まり、1ページ100件固定）", "default": 1},
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "deactivated"],
+                        "description": "在籍状況で絞り込む（active=有効 / deactivated=無効化済み）。省略時は全件",
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["admin", "recruiter", "assistant", "guest"],
+                        "description": "権限（ロール）で絞り込む（admin=管理者 / recruiter=リクルーター / assistant=アシスタント / guest=ゲスト）",
+                    },
+                    "direction": {
+                        "type": "string",
+                        "enum": ["asc", "desc"],
+                        "description": "並び順（既定 desc）",
+                        "default": "desc",
+                    },
+                },
+            },
+        ),
+        types.Tool(
             name="list_timeline_comments",
             description=(
                 "応募者1名分のタイムラインコメント（選考担当者間のやり取り・メモ）を一覧取得する。"
@@ -234,6 +376,48 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if arguments.get("direction"):
                     params["direction"] = arguments["direction"]
                 r = client.get("/requisitions", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_contacts":
+                r = client.get(f"/candidacies/{arguments['candidacy_id']}/contacts")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_candidacy_files":
+                r = client.get(f"/candidacies/{arguments['candidacy_id']}/files")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_assignments":
+                r = client.get(f"/candidacies/{arguments['candidacy_id']}/assignments")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_evaluation":
+                r = client.get(f"/evaluations/{arguments['evaluation_request_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_requisition_groups":
+                r = client.get("/requisition-groups")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_requisition_group":
+                r = client.get(f"/requisition-groups/{arguments['requisition_group_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_users":
+                params = {"page": arguments.get("page", 1)}
+                if arguments.get("status"):
+                    params["status"] = arguments["status"]
+                if arguments.get("role"):
+                    params["role"] = arguments["role"]
+                if arguments.get("direction"):
+                    params["direction"] = arguments["direction"]
+                r = client.get("/users", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
 
