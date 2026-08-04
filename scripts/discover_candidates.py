@@ -30,6 +30,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass, field, asdict
 from datetime import date
@@ -247,6 +248,17 @@ def fetch_services(category_slug: str, category_name: str) -> list[dict]:
             "category": category_name,
             "proni_url": href if href.startswith("http") else PRONI_BASE + href,
         })
+
+    # 200 が返っているのに0件、は「取得失敗」と区別がつかないまま静かに空スキャンになる。
+    # GitHub Actions の runner から実行すると全カテゴリ0件になる事象があるため、
+    # 「サーバが別の中身を返した」のか「HTMLの構造が変わった」のかをログで切り分けられるようにする。
+    if not services:
+        title = ""
+        t = soup.find("title")
+        if t:
+            title = t.get_text(strip=True)[:120]
+        print(f"\n  ⚠ 0件: status={r.status_code} bytes={len(r.content)} "
+              f"anchors={len(soup.find_all('a'))} title={title!r}")
 
     return services
 
@@ -620,6 +632,13 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
             print(f"{c['tier']} (risk={c['signals']['official_ship_risk']})")
             time.sleep(1)
 
+    # 全カテゴリ0件は「候補が無い」ではなく取得側の異常。ここで state / md を書くと
+    # 空の結果が前回分を上書きし、以後の「新規Tier1」判定が全部無意味になる。書く前に落とす。
+    if not candidates:
+        print("\n✗ 全カテゴリで0件。PRONI 側の取得に失敗しています（上の ⚠ 行を参照）。"
+              "\n  state と md は更新せずに終了します。")
+        sys.exit(1)
+
     candidates.sort(key=_sort_key)
     write_markdown(candidates)
     save_state(candidates)
@@ -652,8 +671,10 @@ def watch(token: str):
     """Tier1/2 を再評価し、ティア変化（昇格/降格/deprecate）だけを報告する。"""
     prev = load_state()
     if not prev:
-        print("state が無いので、まず引数なしでフルスキャンしてください。")
-        return
+        # 以前はここで exit 0 していたため、state が復元できていない週も CI は緑になり、
+        # 「毎週何もしていない」ことに気づけなかった。落として気づけるようにする。
+        print("✗ state が無いので再評価できません。まず引数なしでフルスキャンしてください。")
+        sys.exit(1)
 
     targets = [c for c in prev.values() if c["tier"] in ("Tier1", "Tier2")]
     print(f"=== ウォッチャー: Tier1/2 の {len(targets)}件を再評価 ===\n")

@@ -4,14 +4,31 @@ on:
   schedule:
     - cron: '0 0 1 * *'  # 毎月1日 9:00 JST (UTC 0:00)
   workflow_dispatch:
+    inputs:
+      categories:
+        description: "対象カテゴリslugをカンマ区切りで限定（空＝全カテゴリ）。試走用。"
+        required: false
+        default: ""
+      max_per_category:
+        description: "各カテゴリの先頭N件だけ評価（空＝全件）。試走用。"
+        required: false
+        default: ""
 
+# notes/candidates_state.json は公開ポリシー基準2で非公開に倒した（e24e043）ため、
+# このリポジトリにはコミットしない。run をまたぐ持ち越しは Actions の artifact で行う。
 permissions:
-  contents: write
+  contents: read
+  actions: read
   issues: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    env:
+      # 一部カテゴリ／件数だけの試走。この結果を state として保存すると、
+      # 走らせなかったサービスが次の月次で丸ごと「新規Tier1」に化けるので保存もIssue作成もしない。
+      # schedule 実行では inputs が空。event_name を明示して、月次が誤って PARTIAL 扱いされないようにする。
+      PARTIAL: ${{ (github.event_name == 'workflow_dispatch' && (inputs.categories != '' || inputs.max_per_category != '')) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -22,17 +39,54 @@ jobs:
       - name: Install dependencies
         run: pip install httpx beautifulsoup4
 
+      - name: Restore previous state from artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p notes
+          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=candidates-state&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse
+                  | (first // {}) | .workflow_run.id // empty')
+          if [ -n "$RUN_ID" ]; then
+            gh run download "$RUN_ID" --name candidates-state --dir notes
+            echo "state 復元: run ${RUN_ID}（$(wc -c < notes/candidates_state.json) bytes）"
+          else
+            echo "state 無し。今回が初回として扱われ、Tier1 は全件が新規になります。"
+          fi
+
       - name: Run full scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/discover_candidates.py --token "$GITHUB_TOKEN"
+          CATEGORIES: ${{ inputs.categories }}
+          MAX_PER_CATEGORY: ${{ inputs.max_per_category }}
+        run: |
+          # bash -e 下で `[ -n "$X" ] && ARGS+=(...)` を使うと、空のとき終了1でステップごと落ちる。
+          ARGS=(--token "$GITHUB_TOKEN")
+          if [ -n "$CATEGORIES" ]; then
+            ARGS+=(--categories "$CATEGORIES")
+          fi
+          if [ -n "$MAX_PER_CATEGORY" ]; then
+            ARGS+=(--max-per-category "$MAX_PER_CATEGORY")
+          fi
+          python scripts/discover_candidates.py "${ARGS[@]}"
+
+      # スキャン成功時のみ保存する。0件で落ちた回に前回分を上書きさせない。
+      - name: Save state as artifact
+        if: env.PARTIAL == 'false'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidates-state
+          path: notes/candidates_state.json
+          retention-days: 90
 
       - name: Ensure candidate label exists
+        if: env.PARTIAL == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh label create candidate --description "MCP開発候補（discover_candidates.py が検出）" --color "1D76DB" --force
 
       - name: Create one Issue per newly-surfaced Tier1 candidate
+        if: env.PARTIAL == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -71,11 +125,3 @@ jobs:
               --label "candidate" \
               --body "$BODY"
           done
-
-      - name: Commit updated state
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add notes/candidates_state.json
-          git diff --cached --quiet || git commit -m "chore(discover): 月次フルスキャンで state 更新 $(date +%Y-%m-%d)"
-          git push

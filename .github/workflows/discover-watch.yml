@@ -5,8 +5,10 @@ on:
     - cron: '0 0 * * 1'  # 毎週月曜 9:00 JST (UTC 0:00)
   workflow_dispatch:
 
+# state の持ち越しは artifact 経由。理由は discover-scan.yml のコメントを参照。
 permissions:
-  contents: write
+  contents: read
+  actions: read
   issues: write
 
 jobs:
@@ -22,12 +24,37 @@ jobs:
       - name: Install dependencies
         run: pip install httpx beautifulsoup4
 
+      - name: Restore previous state from artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p notes
+          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=candidates-state&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse
+                  | (first // {}) | .workflow_run.id // empty')
+          if [ -n "$RUN_ID" ]; then
+            gh run download "$RUN_ID" --name candidates-state --dir notes
+            echo "state 復元: run ${RUN_ID}（$(wc -c < notes/candidates_state.json) bytes）"
+          else
+            echo "state 無し。--watch は再評価できないので落ちます（先に月次フルスキャンを回す）。"
+          fi
+
       - name: Run discover --watch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # pipefail が無いと tee の終了ステータスに化けて、python 側の失敗が緑になる。
         run: |
+          set -o pipefail
           python scripts/discover_candidates.py --watch --token "$GITHUB_TOKEN" \
             | tee /tmp/watch_output.txt
+
+      # 変化の有無にかかわらず state は再評価で更新されるので、毎回保存する。
+      - name: Save state as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidates-state
+          path: notes/candidates_state.json
+          retention-days: 90
 
       - name: Check for tier changes
         id: check
@@ -37,15 +64,6 @@ jobs:
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Commit updated state
-        if: steps.check.outputs.changed == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add notes/candidates_state.json
-          git diff --cached --quiet || git commit -m "chore(discover): weekly watch でティア更新 $(date +%Y-%m-%d)"
-          git push
 
       - name: Create GitHub Issue
         if: steps.check.outputs.changed == 'true'
