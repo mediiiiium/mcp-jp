@@ -218,6 +218,10 @@ def fetch_services(category_slug: str, category_name: str) -> list[dict]:
     try:
         r = httpx.get(url, timeout=15, follow_redirects=True, headers=UA)
         r.raise_for_status()
+        # PRONI 側のボット緩和は 202 + 空ボディを返す（GitHub runner の IP から実行すると
+        # 全リクエストがこれになる）。raise_for_status() は 2xx を通すので明示的に弾く。
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code}（{len(r.content)} bytes）: ボット緩和の可能性")
     except Exception as e:
         print(f"  ✗ 取得失敗 ({category_name}): {e}")
         return []
