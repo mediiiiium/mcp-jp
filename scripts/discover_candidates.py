@@ -177,6 +177,15 @@ STRUCTURAL_PATTERNS = (
 # 2026-07-03 の誤検知（NetBot/Proflly）は主ドメイン配下のパスで起きており、この判定には乗らない。
 DEV_HOST_PREFIXES = ("developers.", "developer.", "api.", "docs.")
 
+# detect_api() が1ドメインに使ってよい総時間。
+# httpx の timeout はリクエスト単位なので、リダイレクトが連なると1ホップごとに予算が付き直し、
+# 応答をゆっくり返すサーバー相手には上限にならない。実測で1ドメイン192.9秒かかった例があり、
+# そのペースだと746件の完走に27時間かかる。総時間で切る。
+DETECT_API_BUDGET_SEC = 20
+# 1リクエストあたり。接続3秒・以降5秒、リダイレクトは5ホップまで。
+HTTP_TIMEOUT = httpx.Timeout(5.0, connect=3.0)
+MAX_REDIRECTS = 5
+
 STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md")
 ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
@@ -208,6 +217,7 @@ def load_dotenv():
 @dataclass
 class Signals:
     api_hard: bool = False
+    api_check_timeout: bool = False     # 探索が時間切れ（＝「APIが無い」と確認できていない）
     api_url: str = ""
     api_evidence: list = field(default_factory=list)
     has_openapi: bool = False           # OpenAPI/Swagger 公開（API実在の硬い証拠 かつ 開発者志向）
@@ -386,63 +396,75 @@ def detect_api(domain: str) -> Signals:
     if not domain:
         return sig
 
-    for pattern in API_PATTERNS:
-        url = pattern.format(d=domain)
-        try:
-            r = httpx.get(url, timeout=8, follow_redirects=True, headers=UA)
-        except Exception:
-            continue
-        if r.status_code >= 400:
-            continue
+    deadline = time.time() + DETECT_API_BUDGET_SEC
+    client = httpx.Client(timeout=HTTP_TIMEOUT, follow_redirects=True,
+                          max_redirects=MAX_REDIRECTS, headers=UA)
+    try:
+        for pattern in API_PATTERNS:
+            if time.time() > deadline:
+                # 予算切れ。「APIが無い」ではなく「調べ切れなかった」ので印を残す。
+                sig.api_check_timeout = True
+                break
 
-        final_url = str(r.url)
+            url = pattern.format(d=domain)
+            try:
+                r = client.get(url)
+            except Exception:
+                continue
+            if r.status_code >= 400:
+                continue
 
-        # 陰性シグナル1: マーケティングTOPへのリダイレクト（devdocsの実体なし）
-        if _is_redirect_to_homepage(url, final_url):
-            continue
-        # 陰性シグナル2: SSO/認証ウォール（公開ドキュメントではない）
-        if _is_auth_wall(final_url):
-            continue
+            final_url = str(r.url)
 
-        body = r.text.lower()
-        evidence = []
-        if any(k in body for k in API_STRONG):
-            evidence += [k for k in API_STRONG if k in body]
-        weak_hits = [k for k in API_WEAK if k in body]
-        evidence += weak_hits
+            # 陰性シグナル1: マーケティングTOPへのリダイレクト（devdocsの実体なし）
+            if _is_redirect_to_homepage(url, final_url):
+                continue
+            # 陰性シグナル2: SSO/認証ウォール（公開ドキュメントではない）
+            if _is_auth_wall(final_url):
+                continue
 
-        strong_hit = any(k in body for k in API_STRONG)
-        keyword_hard = strong_hit or len(weak_hits) >= 2
-        if not keyword_hard:
-            continue
+            body = r.text.lower()
+            evidence = []
+            if any(k in body for k in API_STRONG):
+                evidence += [k for k in API_STRONG if k in body]
+            weak_hits = [k for k in API_WEAK if k in body]
+            evidence += weak_hits
 
-        # キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
-        # （NetBotの「APIとは」解説ブログ、Profllyの無関係な告知ページがこのパターン）
-        # 証拠は2通り: HTMLに実物が載っている（構造的証拠）か、開発者専用ホストに着地したか。
-        # 前者だけを条件にしていた結果、JS描画のポータルを全部取りこぼしていた
-        # （実測: 3カテゴリ104件で api_hard=0件。freee も HubSpot も落ちていた）。
-        structural = _has_structural_evidence(r.text, body)
-        dev_host = _is_dedicated_dev_host(url, final_url)
-        if not (structural or dev_host):
-            continue
+            strong_hit = any(k in body for k in API_STRONG)
+            keyword_hard = strong_hit or len(weak_hits) >= 2
+            if not keyword_hard:
+                continue
 
-        if dev_host and not structural:
-            evidence.insert(0, "開発者専用ホスト")
+            # キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
+            # （NetBotの「APIとは」解説ブログ、Profllyの無関係な告知ページがこのパターン）
+            # 証拠は2通り: HTMLに実物が載っている（構造的証拠）か、開発者専用ホストに着地したか。
+            # 前者だけを条件にしていた結果、JS描画のポータルを全部取りこぼしていた
+            # （実測: 3カテゴリ104件で api_hard=0件。freee も HubSpot も落ちていた）。
+            structural = _has_structural_evidence(r.text, body)
+            dev_host = _is_dedicated_dev_host(url, final_url)
+            if not (structural or dev_host):
+                continue
 
-        sig.api_hard = True
-        sig.api_url = final_url
-        sig.api_evidence = evidence[:6]
-        sig.has_openapi = ("openapi" in body) or ("swagger" in body)
-        # 英語doc判定: html lang か 本文の日本語率
-        lang = ""
-        m = re.search(r'<html[^>]*\blang=["\']?([a-zA-Z-]+)', r.text)
-        if m:
-            lang = m.group(1).lower()
-        text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
-        sig.english_docs = lang.startswith("en") or (
-            len(text) > 500 and _japanese_ratio(text) < 0.02
-        )
-        return sig
+            if dev_host and not structural:
+                evidence.insert(0, "開発者専用ホスト")
+
+            sig.api_hard = True
+            sig.api_check_timeout = False   # 見つかったので予算切れは関係ない
+            sig.api_url = final_url
+            sig.api_evidence = evidence[:6]
+            sig.has_openapi = ("openapi" in body) or ("swagger" in body)
+            # 英語doc判定: html lang か 本文の日本語率
+            lang = ""
+            m = re.search(r'<html[^>]*\blang=["\']?([a-zA-Z-]+)', r.text)
+            if m:
+                lang = m.group(1).lower()
+            text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
+            sig.english_docs = lang.startswith("en") or (
+                len(text) > 500 and _japanese_ratio(text) < 0.02
+            )
+            return sig
+    finally:
+        client.close()
 
     return sig
 
@@ -763,6 +785,11 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
               f"（{unknown * 100 // len(candidates)}%）。多いなら結果は不完全なので回し直すこと。")
     else:
         print(f"  MCP有無は全{len(candidates)}件で確認できています。")
+
+    timed_out = sum(1 for c in candidates if c["signals"].get("api_check_timeout"))
+    if timed_out:
+        print(f"  ⚠ API探索が時間切れ（APIの有無を確認できていない）: "
+              f"{timed_out}/{len(candidates)}件（{timed_out * 100 // len(candidates)}%）")
     print(f"  → {OUT_PATH}")
     print(f"  → {STATE_PATH}")
     if new_tier1:
