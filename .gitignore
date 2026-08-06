@@ -5,6 +5,7 @@ scripts/*
 !scripts/discover_candidates.py
 !scripts/mcp_trend_digest.py
 !scripts/coverage_inventory.py
+!scripts/test_detect_api.py
 .DS_Store
 .venv*/
 __pycache__/

@@ -172,6 +172,11 @@ STRUCTURAL_PATTERNS = (
     re.compile(r"\"swagger\"\s*:\s*\"2"),                          # Swagger 2.0 JSON
 )
 
+# 開発者専用ホストの接頭辞。マーケティングサイトはこの種のサブドメインを持たないので、
+# ここに 200 で着地したこと自体が「本物のdevdocs」の証拠になる。
+# 2026-07-03 の誤検知（NetBot/Proflly）は主ドメイン配下のパスで起きており、この判定には乗らない。
+DEV_HOST_PREFIXES = ("developers.", "developer.", "api.", "docs.")
+
 STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md")
 ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
@@ -352,6 +357,22 @@ def _has_structural_evidence(raw_html: str, body_lower: str) -> bool:
     return any(p.search(raw_html) or p.search(body_lower) for p in STRUCTURAL_PATTERNS)
 
 
+def _is_dedicated_dev_host(url: str, final_url: str) -> bool:
+    """developers.example.com のような開発者専用ホストに、別ホストへ飛ばされず着地したか。
+
+    STRUCTURAL_PATTERNS は <pre>/<code>/curl 例といった「HTMLに実物が載っている」前提だが、
+    最近の開発者ポータルはJSで描画するので初期HTMLにそれが無い。実測では
+    developers.freee.co.jp（91KB, title "freee Developers Hub"）も
+    developers.hubspot.jp（199KB, title "HubSpot開発者向けサイト"）も構造的証拠ゼロで落ちていた。
+    専用ホストの存在自体を証拠として扱い、この取りこぼしを埋める。
+    """
+    host = urlparse(url).netloc.lower()
+    if not any(host.startswith(p) for p in DEV_HOST_PREFIXES):
+        return False
+    # マーケTOPや認証基盤など別ホストへ飛ばされていたら証拠にしない
+    return host == urlparse(final_url).netloc.lower()
+
+
 def detect_api(domain: str) -> Signals:
     """APIドキュメントを硬く判定する。URL 200では不十分なので本文の中身を見る。
 
@@ -395,10 +416,18 @@ def detect_api(domain: str) -> Signals:
         if not keyword_hard:
             continue
 
-        # 構造的証拠を要求: キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
+        # キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
         # （NetBotの「APIとは」解説ブログ、Profllyの無関係な告知ページがこのパターン）
-        if not _has_structural_evidence(r.text, body):
+        # 証拠は2通り: HTMLに実物が載っている（構造的証拠）か、開発者専用ホストに着地したか。
+        # 前者だけを条件にしていた結果、JS描画のポータルを全部取りこぼしていた
+        # （実測: 3カテゴリ104件で api_hard=0件。freee も HubSpot も落ちていた）。
+        structural = _has_structural_evidence(r.text, body)
+        dev_host = _is_dedicated_dev_host(url, final_url)
+        if not (structural or dev_host):
             continue
+
+        if dev_host and not structural:
+            evidence.insert(0, "開発者専用ホスト")
 
         sig.api_hard = True
         sig.api_url = final_url
