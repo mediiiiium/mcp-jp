@@ -206,6 +206,7 @@ class Signals:
     global_giant: bool = False          # 海外グローバル大手
     ecosystem_hits: int | None = None   # 「<名前> 代理店/構築」検索ヒット数（弱い代理指標）
     mcp_exists: bool = False
+    mcp_check_failed: bool = False      # MCP有無を確認できなかった（＝「無い」と区別する）
     mcp_url: str = ""
     self_implemented: bool = False      # 自社の既存コネクタと同一ドメイン（IMPLEMENTED_DOMAINS 一致）
     official_ship_risk: int = 0         # 0-100。高いほど公式が出しそう＝降格
@@ -435,8 +436,42 @@ def ecosystem_signal(name: str) -> int | None:
 
 # ── シグナル4: MCP/公式の存在 ─────────────────────────────────
 
-def mcp_exists(service_name: str, token: str) -> tuple[bool, str]:
-    """既存MCPの有無。日本語名は英語リポジトリにマッチしにくいので語を足して2回引く。"""
+def _search_retry_wait(r: httpx.Response) -> int:
+    """レート制限に当たったとき、次にいつ叩けるか。ヘッダに従い、無ければ61秒。"""
+    retry_after = r.headers.get("retry-after")
+    if retry_after and retry_after.isdigit():
+        return max(5, min(int(retry_after), 300))
+    reset = r.headers.get("x-ratelimit-reset")
+    if reset and reset.isdigit():
+        return max(5, min(int(int(reset) - time.time()) + 2, 300))
+    return 61
+
+
+def _github_search(query: str, headers: dict, attempts: int = 4) -> dict:
+    """GitHub検索。検索APIは 30回/分と厳しいので、制限に当たったら reset まで待って引き直す。
+    全部失敗したときだけ例外を投げる。呼び出し側はそれを「判定不能」に倒すこと。"""
+    for i in range(attempts):
+        r = httpx.get(
+            "https://api.github.com/search/repositories",
+            params={"q": query, "per_page": 3}, headers=headers, timeout=15,
+        )
+        if r.status_code in (403, 429):
+            wait = _search_retry_wait(r)
+            print(f"  ⚠ GitHub rate limit。{wait}秒待機（{i + 1}/{attempts}）...", flush=True)
+            time.sleep(wait)
+            continue
+        r.raise_for_status()
+        return r.json()
+    raise RuntimeError(f"レート制限で {attempts} 回とも引けなかった: {query}")
+
+
+def mcp_exists(service_name: str, token: str) -> tuple[bool | None, str]:
+    """既存MCPの有無。日本語名は英語リポジトリにマッチしにくいので語を足して2回引く。
+
+    戻り値の第1要素は3値。True=あり / False=無い / None=確認できなかった。
+    以前はエラー時に False を返していたが、False は「MCP無し」＝候補として生き残る、を意味する。
+    つまり検索が失敗するほど Tier1 が増える fail-open になっていた（誤検知の主犯と見ている）。
+    """
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -444,29 +479,18 @@ def mcp_exists(service_name: str, token: str) -> tuple[bool, str]:
     queries = [f'"{service_name}" mcp', f'{service_name} mcp server']
     for query in queries:
         try:
-            r = httpx.get(
-                "https://api.github.com/search/repositories",
-                params={"q": query, "per_page": 3}, headers=headers, timeout=10,
-            )
-            if r.status_code == 403:
-                print("  ⚠ GitHub rate limit。60秒待機...")
-                time.sleep(61)
-                r = httpx.get(
-                    "https://api.github.com/search/repositories",
-                    params={"q": query, "per_page": 3}, headers=headers, timeout=10,
-                )
-            r.raise_for_status()
-            data = r.json()
-            items = data.get("items", [])
-            if data.get("total_count", 0) > 0 and items:
-                name_lower = service_name.lower()
-                for item in items:
-                    repo_name = (item.get("name") or "").lower()
-                    repo_desc = (item.get("description") or "").lower()
-                    if name_lower in repo_name or name_lower in repo_desc:
-                        return True, item["html_url"]
+            data = _github_search(query, headers)
         except Exception as e:
-            print(f"  ✗ GitHub検索エラー: {e}")
+            print(f"  ✗ GitHub検索エラー（判定不能）: {e}", flush=True)
+            return None, ""
+        items = data.get("items", [])
+        if data.get("total_count", 0) > 0 and items:
+            name_lower = service_name.lower()
+            for item in items:
+                repo_name = (item.get("name") or "").lower()
+                repo_desc = (item.get("description") or "").lower()
+                if name_lower in repo_name or name_lower in repo_desc:
+                    return True, item["html_url"]
         time.sleep(1)
     return False, ""
 
@@ -488,6 +512,10 @@ def score_official_risk(sig: Signals) -> int:
 def assign_tier(sig: Signals) -> str:
     if sig.mcp_exists or sig.self_implemented:
         return "deprecate"          # 既にMCPあり（自社実装含む） → 使う側に回す
+    if sig.mcp_check_failed:
+        # MCPの有無が確認できていない以上、着手候補には上げられない。保留に置けば、
+        # 次回検索が通ったときに Tier1 へ上がり「新規Tier1」として拾い直される。
+        return "Tier3"
     if not sig.api_hard:
         return "Tier3"              # API実在が硬く確認できない
     if sig.global_giant:
@@ -504,13 +532,15 @@ def evaluate(svc: dict, token: str, with_ecosystem: bool = True) -> dict:
     has_mcp, mcp_url = mcp_exists(name, token)
     domain = svc.get("domain") or resolve_domain(svc["proni_url"])
     sig = detect_api(domain)
-    sig.mcp_exists = has_mcp
+    sig.mcp_check_failed = has_mcp is None
+    sig.mcp_exists = has_mcp is True
     sig.mcp_url = mcp_url
     sig.self_implemented = is_implemented_domain(domain)
     sig.global_giant = any(g in domain for g in GLOBAL_GIANTS)
 
     # 利用者規模は Tier1 候補の優先度づけにしか使わないので、API硬判定◯のときだけ取る
-    if with_ecosystem and sig.api_hard and not has_mcp and not sig.self_implemented and not sig.global_giant:
+    if (with_ecosystem and sig.api_hard and has_mcp is False
+            and not sig.self_implemented and not sig.global_giant):
         sig.ecosystem_hits = ecosystem_signal(name)
 
     sig.official_ship_risk = score_official_risk(sig)
@@ -659,6 +689,14 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
     counts = {t: sum(1 for c in candidates if c["tier"] == t) for t in TIER_ORDER}
     print(f"\n完了: Tier1={counts['Tier1']} / Tier2={counts['Tier2']} "
           f"/ Tier3={counts['Tier3']} / deprecate={counts['deprecate']}")
+
+    # 判定不能が多い回の結果は信用しない。何件を取りこぼしたかを必ず出す。
+    unknown = sum(1 for c in candidates if c["signals"].get("mcp_check_failed"))
+    if unknown:
+        print(f"  ⚠ MCP有無を確認できず Tier3 に落としたもの: {unknown}/{len(candidates)}件"
+              f"（{unknown * 100 // len(candidates)}%）。多いなら結果は不完全なので回し直すこと。")
+    else:
+        print(f"  MCP有無は全{len(candidates)}件で確認できています。")
     print(f"  → {OUT_PATH}")
     print(f"  → {STATE_PATH}")
     if new_tier1:
