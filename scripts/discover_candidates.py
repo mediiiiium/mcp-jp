@@ -177,6 +177,10 @@ OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md"
 ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
 # フルスキャンで新規に Tier1 入りした候補の一覧（CI が読んで Issue 化する）。state と違いコミットしない一時ファイル。
 NEW_TIER1_PATH = os.path.join(os.path.dirname(__file__), "../notes/new_tier1_candidates.json")
+# 走行中の中間結果。フルスキャンは746サービスで1〜2時間かかるので、途中で死んだときに
+# 全部やり直しにならないようカテゴリ完了ごとに書く。完走したら消す（state とは別物で、
+# state はあくまで「前回の完走結果」＝新規Tier1判定の基準として保つ）。
+PROGRESS_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_progress.json")
 
 
 def load_dotenv():
@@ -637,12 +641,28 @@ def load_state() -> dict:
         return json.load(f).get("candidates", {})
 
 
+def save_progress(candidates: list[dict], done_categories: list[str]):
+    with open(PROGRESS_PATH, "w", encoding="utf-8") as f:
+        json.dump({"done_categories": done_categories,
+                   "candidates": candidates}, f, ensure_ascii=False, indent=2)
+
+
+def load_progress() -> tuple[list[dict], set[str]]:
+    if not os.path.exists(PROGRESS_PATH):
+        return [], set()
+    with open(PROGRESS_PATH, encoding="utf-8") as f:
+        d = json.load(f)
+    return d.get("candidates", []), set(d.get("done_categories", []))
+
+
 # ── フルスキャン ──────────────────────────────────────────────
 
-def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int | None = None):
+def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int | None = None,
+              resume: bool = False):
     print("=== MCP候補 スキャン ===\n")
     prev_state = load_state()
     candidates: list[dict] = []
+    done_categories: list[str] = []
 
     cats = CATEGORIES
     if only_slugs:
@@ -650,6 +670,15 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
         if not cats:
             print(f"該当カテゴリなし: {only_slugs}（スラッグは CATEGORIES を参照）")
             return
+
+    if resume:
+        candidates, done = load_progress()
+        done_categories = sorted(done)
+        if candidates:
+            print(f"中断分を引き継ぎ: {len(done_categories)}カテゴリ / {len(candidates)}件は再評価しません")
+            cats = [(n, s) for (n, s) in cats if n not in done]
+            if not cats:
+                print("全カテゴリが完了済みです。仕上げだけ行います。")
 
     for category_name, slug in cats:
         print(f"\n[{category_name}] サービス取得中...")
@@ -666,6 +695,11 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
             print(f"{c['tier']} (risk={c['signals']['official_ship_risk']})")
             time.sleep(1)
 
+        # カテゴリ単位で中間保存。ここで落ちても失うのは直近1カテゴリぶんだけになる。
+        done_categories.append(category_name)
+        save_progress(candidates, done_categories)
+        print(f"  [中間保存] {len(done_categories)}カテゴリ / {len(candidates)}件", flush=True)
+
     # 全カテゴリ0件は「候補が無い」ではなく取得側の異常。ここで state / md を書くと
     # 空の結果が前回分を上書きし、以後の「新規Tier1」判定が全部無意味になる。書く前に落とす。
     if not candidates:
@@ -676,6 +710,9 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
     candidates.sort(key=_sort_key)
     write_markdown(candidates)
     save_state(candidates)
+    # 完走したので中間ファイルは用済み。残すと次回 --resume が誤って引き継いでしまう。
+    if os.path.exists(PROGRESS_PATH):
+        os.remove(PROGRESS_PATH)
 
     # 新規Tier1検出: 前回 state で Tier1 でなかった（＝存在しなかった、または下位ティアだった）ものだけを拾う。
     # これが「候補が湧いたら開発にパスする」導線のトリガーになる。
@@ -759,13 +796,16 @@ def main():
                         help="対象カテゴリslugをカンマ区切りで限定（例: line-marketing-tool,crm）")
     parser.add_argument("--max-per-category", type=int, default=None,
                         help="各カテゴリの先頭N件だけ評価（token無しの試走用）")
+    parser.add_argument("--resume", action="store_true",
+                        help="中断したフルスキャンの続きから（完了済みカテゴリは再評価しない）")
     args = parser.parse_args()
 
     if args.watch:
         watch(args.token)
     else:
         slugs = [s.strip() for s in args.categories.split(",") if s.strip()] or None
-        full_scan(args.token, only_slugs=slugs, max_per_cat=args.max_per_category)
+        full_scan(args.token, only_slugs=slugs, max_per_cat=args.max_per_category,
+                  resume=args.resume)
 
 
 if __name__ == "__main__":
