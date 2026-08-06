@@ -539,32 +539,76 @@ def _github_search(query: str, headers: dict, attempts: int = 4) -> dict:
     raise RuntimeError(f"レート制限で {attempts} 回とも引けなかった: {query}")
 
 
-def mcp_exists(service_name: str, token: str) -> tuple[bool | None, str]:
-    """既存MCPの有無。日本語名は英語リポジトリにマッチしにくいので語を足して2回引く。
+# ブランド名を取り出すときに落とすサブドメインと公開サフィックス。
+BRAND_SUBDOMAINS = ("www.", "biz.", "app.", "jp.", "cloud.", "service.", "my.")
+BRAND_SUFFIXES = {"com", "net", "org", "jp", "co", "ne", "ad", "or", "io",
+                  "ltd", "inc", "cloud", "app", "tech", "work", "biz", "info"}
+# 短すぎるブランド名（ntt, sas 等）は無関係なリポジトリを大量に拾うので使わない。
+BRAND_MIN_LEN = 4
+
+
+def _brand_from_domain(domain: str) -> str:
+    """ドメインからベンダー名を1語取り出す。freee.co.jp→freee / biz.moneyforward.com→moneyforward"""
+    host = (domain or "").lower().strip()
+    for p in BRAND_SUBDOMAINS:
+        if host.startswith(p):
+            host = host[len(p):]
+            break
+    labels = [x for x in host.split(".") if x]
+    while len(labels) > 1 and labels[-1] in BRAND_SUFFIXES:
+        labels.pop()
+    return labels[-1] if labels else ""
+
+
+def mcp_exists(service_name: str, domain: str, token: str) -> tuple[bool | None, str]:
+    """既存MCPの有無。
 
     戻り値の第1要素は3値。True=あり / False=無い / None=確認できなかった。
     以前はエラー時に False を返していたが、False は「MCP無し」＝候補として生き残る、を意味する。
-    つまり検索が失敗するほど Tier1 が増える fail-open になっていた（誤検知の主犯と見ている）。
+    つまり検索が失敗するほど Tier1 が増える fail-open になっていた。
+
+    2026-08-06、同じ fail-open が別の層に残っていたのを修正した。
+    以前はサービス名の完全一致を要求していた（`name_lower in repo_name`）ため、
+    `"freee勤怠管理" in "freee-mcp"` が False になり、公式リポジトリを取りこぼしていた。
+    公式MCPは英語名なので日本語の製品名が丸ごと入ることはまずない。実害として、
+    ★482 の freee/freee-mcp が存在するのに freee 製品7件が Tier1（着手候補）に並んだ。
+    ドメイン由来のベンダー名で引き直す。
     """
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
+    brand = _brand_from_domain(domain)
+    name_lower = service_name.lower()
+    # 「マネーフォワード クラウド会計」→「マネーフォワード」。製品名の後半を落とした先頭語も見る。
+    first_token = name_lower.split()[0] if name_lower.split() else ""
+
     queries = [f'"{service_name}" mcp', f'{service_name} mcp server']
+    if len(brand) >= BRAND_MIN_LEN:
+        queries.insert(0, f"{brand} mcp server")
+
     for query in queries:
         try:
             data = _github_search(query, headers)
         except Exception as e:
             print(f"  ✗ GitHub検索エラー（判定不能）: {e}", flush=True)
             return None, ""
-        items = data.get("items", [])
-        if data.get("total_count", 0) > 0 and items:
-            name_lower = service_name.lower()
-            for item in items:
-                repo_name = (item.get("name") or "").lower()
-                repo_desc = (item.get("description") or "").lower()
-                if name_lower in repo_name or name_lower in repo_desc:
-                    return True, item["html_url"]
+        for item in data.get("items", []):
+            repo_name = (item.get("name") or "").lower()
+            repo_desc = (item.get("description") or "").lower()
+            blob = f"{repo_name} {repo_desc}"
+            # MCPサーバーであること自体を必ず確認する。ベンダー名だけの一致だと
+            # 無関係なリポジトリを「MCPあり」と誤判定し、良い候補を握り潰す。
+            if "mcp" not in blob:
+                continue
+            hit = (
+                name_lower in repo_name or name_lower in repo_desc
+                # ベンダー名はノイズが多いので、リポジトリ名側に出ているときだけ採る
+                or (len(brand) >= BRAND_MIN_LEN and brand in repo_name)
+                or (len(first_token) >= BRAND_MIN_LEN and first_token in repo_desc)
+            )
+            if hit:
+                return True, item["html_url"]
         time.sleep(1)
     return False, ""
 
@@ -603,8 +647,9 @@ def evaluate(svc: dict, token: str, with_ecosystem: bool = True) -> dict:
     """1サービスを全シグナル評価し、ティアまで決めた候補dictを返す。"""
     name = svc["name"]
 
-    has_mcp, mcp_url = mcp_exists(name, token)
+    # ドメインを先に解決する。mcp_exists() がブランド名の取り出しにドメインを使うため。
     domain = svc.get("domain") or resolve_domain(svc["proni_url"])
+    has_mcp, mcp_url = mcp_exists(name, domain, token)
     sig = detect_api(domain)
     sig.mcp_check_failed = has_mcp is None
     sig.mcp_exists = has_mcp is True

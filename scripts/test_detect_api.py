@@ -26,8 +26,13 @@ POSITIVES = [
 # 例: moneyforward.com は developers./developer./api./docs. が全てDNS不在で、
 #     主ドメイン配下の /developers /api-docs /api も404（2026-08-06実測）。
 # 取りこぼしを減らすには探索先を増やすしかなく、増やせば誤検知も増える。
+# 注意: これは「マネーフォワードにAPIが無い」という意味ではない。コーポレート側の
+# moneyforward.com に開発者ポータルが無いだけで、事業ドメインの biz.moneyforward.com には
+# developers.biz.moneyforward.com が実在し、2026-08-06 のスキャンでは Tier1 として拾えている。
+# つまり取りこぼしの正体は「resolve_domain がどのドメインに解決したか」であって、
+# detect_api の探索先の数ではない。増やすべきは探索先ではなく解決精度。
 KNOWN_BLIND_SPOTS = [
-    ("moneyforward.com", "マネーフォワード — 7つの探索先のどこにもdocsが無い"),
+    ("moneyforward.com", "コーポレート側ドメイン — 事業側(biz.)なら検出できる"),
 ]
 
 # 2026-07-03 に Tier1 として上がってしまい、人手で誤検知と確認されたもの。

@@ -13,3 +13,4 @@ __pycache__/
 .env.*
 !.env.example
 .claude/
+!scripts/test_mcp_exists.py
