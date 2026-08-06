@@ -35,6 +35,11 @@ KNOWN_BLIND_SPOTS = [
 NEGATIVES = [
     ("socialplus.jp", "ソーシャルPLUS — マーケTOPへのリダイレクト"),
     ("autoline.timetechnologies.ltd", "Ligla — マーケTOPへのリダイレクト"),
+    ("netbot.jp", "NetBot — 「APIとは」解説ブログにキーワードが偶然含まれていただけ"),
+    # Proflly のドメインは製品サイトではなくベンダーのコーポレートサイト(classmethod.jp)に
+    # 解決される。あそこは開発ブログ(dev.classmethod.jp)を抱えていてAPI記事が大量にあるので、
+    # 誤検知しやすい。resolve_domain() の弱点でもあり、最も落としにくい負例。
+    ("classmethod.jp", "Proflly — 解決先がベンダーのコーポレートサイト、無関係な告知ページ"),
 ]
 
 
