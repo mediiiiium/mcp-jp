@@ -182,8 +182,17 @@ DEV_HOST_PREFIXES = ("developers.", "developer.", "api.", "docs.")
 # 応答をゆっくり返すサーバー相手には上限にならない。実測で1ドメイン192.9秒かかった例があり、
 # そのペースだと746件の完走に27時間かかる。総時間で切る。
 DETECT_API_BUDGET_SEC = 20
-# 1リクエストあたり。接続3秒・以降5秒、リダイレクトは5ホップまで。
-HTTP_TIMEOUT = httpx.Timeout(5.0, connect=3.0)
+
+# 接続タイムアウトは「1アドレスあたり」であって「1リクエストあたり」ではない。
+# httpx の同期トランスポートは socket.create_connection 相当で、DNSが返したアドレスを
+# 直列に総当たりする。PRONI(CloudFront)は saas.imitsu.jp に IPv6×8 + IPv4×4 の
+# 計12アドレスを返すので、詰まると connect の12倍まで膨らむ。
+# 2026-08-06 実測: 生ソケットの connect(timeout=30) が240秒（≒12アドレス分）、
+# 同時刻に curl は同URLを1.2秒（curl は Happy Eyeballs で並列に試すので影響を受けない）。
+# 「timeout を設定したのに1ドメイン80〜240秒かかる」の正体がこれ。
+# 詰まる条件はサーバー側なので消せない。connect を詰めて最悪値を抑える。
+#   最悪 12アドレス × 2秒 = 24秒（従来の3秒設定だと36秒、10秒設定だと120秒）
+HTTP_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
 MAX_REDIRECTS = 5
 
 STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
@@ -236,7 +245,10 @@ class Signals:
 def fetch_services(category_slug: str, category_name: str) -> list[dict]:
     url = f"{PRONI_BASE}/cate-{category_slug}/serviceList"
     try:
-        r = httpx.get(url, timeout=15, follow_redirects=True, headers=UA)
+        # 一覧は587KB前後あるので読み取りは長めに。接続だけは HTTP_TIMEOUT と同じ2秒で切る
+        # （スカラーで timeout=15 と書くと connect も15秒になり、12アドレス総当たりで180秒に化ける）。
+        r = httpx.get(url, timeout=httpx.Timeout(20.0, connect=2.0),
+                      follow_redirects=True, headers=UA)
         r.raise_for_status()
         # PRONI 側のボット緩和は 202 + 空ボディを返す（GitHub runner の IP から実行すると
         # 全リクエストがこれになる）。raise_for_status() は 2xx を通すので明示的に弾く。
@@ -288,9 +300,14 @@ def fetch_services(category_slug: str, category_name: str) -> list[dict]:
 
 
 def resolve_domain(proni_url: str) -> str:
-    """PRONIサービスページから公式サイトドメインを取得する。"""
+    """PRONIサービスページから公式サイトドメインを取得する。
+
+    ここは746件ぶん必ず通るのでスキャン全体の律速。timeout はスカラーで書かないこと
+    （HTTP_TIMEOUT のコメント参照。connect が12アドレス分に化ける）。
+    """
     try:
-        r = httpx.get(proni_url, timeout=10, follow_redirects=True, headers=UA)
+        r = httpx.get(proni_url, timeout=httpx.Timeout(10.0, connect=2.0),
+                      follow_redirects=True, headers=UA)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
 
@@ -305,8 +322,10 @@ def resolve_domain(proni_url: str) -> str:
                 continue
             if any(kw in text for kw in ["情報取得元", "公式", "サービスサイト", "公式HP"]):
                 return domain
-    except Exception:
-        pass
+    except Exception as e:
+        # 黙って "" を返すとサービスが1件、痕跡なく候補から消える。
+        # このパイプラインは「静かに0件」で何度も時間を溶かしているので必ず出す。
+        print(f"  ✗ ドメイン解決失敗: {type(e).__name__} {proni_url}", flush=True)
     return ""
 
 
