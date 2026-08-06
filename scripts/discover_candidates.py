@@ -527,7 +527,7 @@ def _github_search(query: str, headers: dict, attempts: int = 4) -> dict:
     for i in range(attempts):
         r = httpx.get(
             "https://api.github.com/search/repositories",
-            params={"q": query, "per_page": 3}, headers=headers, timeout=15,
+            params={"q": query, "per_page": 10}, headers=headers, timeout=15,
         )
         if r.status_code in (403, 429):
             wait = _search_retry_wait(r)
@@ -596,15 +596,22 @@ def mcp_exists(service_name: str, domain: str, token: str) -> tuple[bool | None,
         for item in data.get("items", []):
             repo_name = (item.get("name") or "").lower()
             repo_desc = (item.get("description") or "").lower()
-            blob = f"{repo_name} {repo_desc}"
             # MCPサーバーであること自体を必ず確認する。ベンダー名だけの一致だと
             # 無関係なリポジトリを「MCPあり」と誤判定し、良い候補を握り潰す。
-            if "mcp" not in blob:
+            if "mcp" not in f"{repo_name} {repo_desc}":
                 continue
+            # ベンダー名がドメイン由来だと一般語になることがある（channel.io→"channel"）。
+            # 説明文まで見ると誤爆する。実例: AlexAI-MCP/cc-channel-mem は
+            # 「ClaudeCode の Discord/Telegram チャンネル用メモリ」でチャネルトークとは無関係。
+            # ベンダー名側の判定は、リポジトリ名に ベンダー名と "mcp" が両方出るときに限る。
+            # これで cc-channel-mem（mcp無し）も MCP23016（channel無し）も落ちる。
+            brand_hit = (len(brand) >= BRAND_MIN_LEN
+                         and brand in repo_name and "mcp" in repo_name)
             hit = (
                 name_lower in repo_name or name_lower in repo_desc
-                # ベンダー名はノイズが多いので、リポジトリ名側に出ているときだけ採る
-                or (len(brand) >= BRAND_MIN_LEN and brand in repo_name)
+                or brand_hit
+                # 日本語の先頭語（「マネーフォワード クラウド会計」→「マネーフォワード」）は
+                # 一般語になりにくいので説明文まで見てよい。
                 or (len(first_token) >= BRAND_MIN_LEN and first_token in repo_desc)
             )
             if hit:

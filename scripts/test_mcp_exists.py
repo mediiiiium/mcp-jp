@@ -26,6 +26,17 @@ EXISTS = [
      "jp-mcp/mcp-server-moneyforward ほか複数"),
 ]
 
+# 判定器のバグではなく、この手法そのものの上限。
+# ベンダー名はドメインから取るので、一般語になるサービスでは検索が成立しない。
+# 例: channel.io → "channel"。「channel mcp server」の上位は Discord/Telegram/YouTube 系に
+# 埋め尽くされ、本命の scarfunk/mcp-channel-io（★2）は20件見ても出てこない。
+# 一方 GitHub は「channel-talk mcp」でなら返す。つまり足りないのは検索件数ではなく
+# 「チャネルトーク → channel-talk」というカタカナ→英字の変換で、そこまでは作らない。
+# ここに該当するサービスは既存MCPを見落とし、Tier1 に残る（人手で気づける側の誤り）。
+KNOWN_BLIND_SPOTS = [
+    ("チャネルトーク", "channel.io", "ベンダー名が一般語。実際は mcp-channel-io 等が存在する"),
+]
+
 # 既存MCPが無いことを人手で確認済み。ここが True なら緩すぎ＝良い候補を握り潰す。
 # sakura.ad.jp はブランド名が「sakura」という一般語になるので最も誤爆しやすい。
 NOT_EXISTS = [
@@ -80,6 +91,17 @@ def main():
             # None（判定不能）は Tier3 送りになるだけで握り潰しではないので区別する
             kind = "誤判定で候補を握り潰す" if has is True else "判定不能"
             failed.append(f"{kind}: {name}（{note}）")
+
+    print("\n=== 手法の上限（見落とすことが分かっているもの）===")
+    for name, domain, note in KNOWN_BLIND_SPOTS:
+        has, url = mcp_exists(name, domain, token)
+        state = "想定どおり見落とす" if has is not True else "★拾えるようになった"
+        print(f"  {name[:26]:28} has={has}  {state} {url[:44]}")
+        print(f"       {note}")
+        # 誤爆で「あり」になっていないかは見る。無関係なリポジトリを根拠にしたら不合格。
+        for bad in ("cc-channel-mem", "MCP23016"):
+            if bad in (url or ""):
+                failed.append(f"無関係なリポジトリを根拠にした: {name} → {url}")
 
     print()
     if failed:
