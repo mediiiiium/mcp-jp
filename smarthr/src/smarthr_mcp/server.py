@@ -193,6 +193,242 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["id"],
             },
         ),
+        types.Tool(
+            name="list_dependents",
+            description=(
+                "指定した従業員に紐づく家族情報（扶養家族等）の一覧を取得する"
+                "（GET /v1/crews/{crew_id}/dependents）。crew_id には SmartHR内部の従業員ID"
+                "（list_crews のレスポンスの id フィールド）を指定する。ページネーションは"
+                "page/per_page方式（API既定は page=1・per_page=10。本ツールの既定も同じ）。"
+                "書き込みは行わない（読み取り専用）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crew_id": {"type": "string", "description": "従業員ID（list_crews のレスポンスの id フィールド）"},
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+                "required": ["crew_id"],
+            },
+        ),
+        types.Tool(
+            name="list_job_titles",
+            description=(
+                "役職一覧を取得する（GET /v1/job_titles）。各要素は id・name（役職名）・"
+                "rank（役職のランク、1〜99999）・code（役職コード）等を含む。ページネーションは"
+                "page/per_page方式（API既定は page=1・per_page=10。本ツールの既定も同じ）。"
+                "sort パラメータで並び順を指定できるが、指定可能な値の具体的な形式は"
+                "公式ドキュメントに明記されていない。役職の作成・更新・削除のAPIはSmartHR側に"
+                "存在するが、本コネクタは読み取り専用のため未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "並び順を指定する。指定可能な値の具体的な形式は公式ドキュメントに明記されていない",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_grades",
+            description=(
+                "等級一覧を取得する（GET /v1/grades）。各要素は id・name（等級名）・"
+                "rank（等級のランク）・code（等級コード）等を含む。ページネーションは"
+                "page/per_page方式（API既定は page=1・per_page=10。本ツールの既定も同じ）。"
+                "等級の作成・更新・削除のAPIはSmartHR側に存在するが、本コネクタは読み取り専用の"
+                "ため未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_job_categories",
+            description=(
+                "職種一覧を取得する（GET /v1/job_categories）。各要素は id・name（職種名）・"
+                "created_at・updated_at を含む。ページネーションは page/per_page方式"
+                "（API既定は page=1・per_page=10。本ツールの既定も同じ）。職種の作成・更新・"
+                "削除のAPIはSmartHR側に存在するが、本コネクタは読み取り専用のため未実装。"
+                "書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_recruitment_types",
+            description=(
+                "採用区分一覧を取得する（GET /v1/recruitment_types）。各要素は id・"
+                "name（採用区分名）・preset_type（プリセット種別）等を含む。ページネーションは"
+                "page/per_page方式（API既定は page=1・per_page=10。本ツールの既定も同じ）。"
+                "採用区分の作成・更新・削除のAPIはSmartHR側に存在するが、本コネクタは読み取り"
+                "専用のため未実装。書き込みは行わない。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_dependent_relations",
+            description=(
+                "続柄（家族情報の続柄区分）の一覧を取得する（GET /v1/dependent_relations）。"
+                "各要素は id・name（続柄名）・preset_type（プリセット続柄）等を含む。"
+                "filter パラメータで絞り込みができる（公式ドキュメント上の指定可能値は"
+                "spouse のみ確認できた）。ページネーションは page/per_page方式（API既定は"
+                "page=1・per_page=10。本ツールの既定も同じ）。書き込みは行わない（読み取り専用）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "filter": {
+                        "type": "string",
+                        "description": "続柄の絞り込み条件（公式ドキュメント上で確認できた指定可能値は spouse のみ）",
+                    },
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_biz_establishments",
+            description=(
+                "事業所一覧を取得する（GET /v1/biz_establishments）。社会保険・労働保険の"
+                "適用事業所単位の情報（健康保険組合の種類等）を含む。ページネーションは"
+                "page/per_page方式（API既定は page=1・per_page=10。本ツールの既定も同じ）。"
+                "embed パラメータで関連情報（soc_ins_owner / lab_ins_owner / company）を"
+                "埋め込める。書き込みは行わない（読み取り専用）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                    "embed": {
+                        "type": "string",
+                        "enum": ["soc_ins_owner", "lab_ins_owner", "company"],
+                        "description": "レスポンスに埋め込む関連オブジェクト",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_users",
+            description=(
+                "SmartHRのログインユーザー（管理者・利用者アカウント）一覧を取得する"
+                "（GET /v1/users）。各要素は id・email（ログイン用メールアドレス）・"
+                "notification_email（通知用メールアドレス）・admin（管理者フラグ）・role"
+                "（権限）等を含む。招待ステータスは invitation_answered_at / invitation_created_at "
+                "/ invitation_opened_at の値の有無で判定できる（詳細はSmartHR公式ドキュメント参照）。"
+                "ページネーションは page/per_page方式（API既定は page=1・per_page=10。本ツールの"
+                "既定も同じ）。embed パラメータで関連情報（crew / biz_establishment / "
+                "biz_establishment_company / department_company）を埋め込める。書き込みは"
+                "行わない（読み取り専用）。従業員（crew）ではなくSmartHRへのログインアカウント"
+                "を扱う点に注意（従業員一覧は list_crews を使う）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "並び順を指定する。指定可能な値の具体的な形式は公式ドキュメントに明記されていない",
+                    },
+                    "embed": {
+                        "type": "string",
+                        "enum": ["crew", "biz_establishment", "biz_establishment_company", "department_company"],
+                        "description": "レスポンスに埋め込む関連オブジェクト",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_companies",
+            description=(
+                "会社情報の一覧を取得する（GET /v1/companies）。通常はテナントに紐づく"
+                "1社分の会社情報が返る。ページネーションは page/per_page方式（API既定は"
+                "page=1・per_page=10。本ツールの既定も同じ）。書き込みは行わない（読み取り専用）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="list_payment_periods",
+            description=(
+                "給与支給形態の一覧を取得する（GET /v1/payment_periods）。給与の締め日・"
+                "支払日等の設定情報を含む。ページネーションは page/per_page方式（API既定は"
+                "page=1・per_page=10。本ツールの既定も同じ）。書き込みは行わない（読み取り専用）。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "page": {"type": "integer", "description": "ページ番号（1始まり、既定1）", "default": 1},
+                    "per_page": {
+                        "type": "integer",
+                        "description": "1ページあたりの件数（API既定は10）",
+                        "default": 10,
+                    },
+                },
+            },
+        ),
     ]
 
 
@@ -267,6 +503,106 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 crew_id = arguments.pop("id")
                 payload = {k: v for k, v in arguments.items() if v is not None}
                 r = client.patch(f"/crews/{crew_id}", json=payload)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_dependents":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                r = client.get(f"/crews/{arguments['crew_id']}/dependents", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_job_titles":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                r = client.get("/job_titles", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_grades":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                r = client.get("/grades", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_job_categories":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                r = client.get("/job_categories", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_recruitment_types":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                r = client.get("/recruitment_types", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_dependent_relations":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                if arguments.get("filter"):
+                    params["filter"] = arguments["filter"]
+                r = client.get("/dependent_relations", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_biz_establishments":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                if arguments.get("embed"):
+                    params["embed"] = arguments["embed"]
+                r = client.get("/biz_establishments", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_users":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                if arguments.get("sort"):
+                    params["sort"] = arguments["sort"]
+                if arguments.get("embed"):
+                    params["embed"] = arguments["embed"]
+                r = client.get("/users", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_companies":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                r = client.get("/companies", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_payment_periods":
+                params = {
+                    "page": arguments.get("page", 1),
+                    "per_page": arguments.get("per_page", 10),
+                }
+                r = client.get("/payment_periods", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
 

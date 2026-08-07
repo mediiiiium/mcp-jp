@@ -12,6 +12,12 @@ app = Server("lineworks-mcp")
 BASE_URL = "https://www.worksapis.com/v1.0"
 AUTH_URL = "https://auth.worksmobile.com/oauth2/v2.0/token"
 
+# トークン発行時に要求するスコープ（スペース区切り）。
+# Developer Console のアプリに同意されていないスコープを要求するとトークン発行自体が
+# 失敗し、全ツールが使えなくなる。ディレクトリ系（orgunit/group）を使わない環境では
+# LINEWORKS_SCOPE="bot user.read" のように絞って上書きできるようにしておく。
+DEFAULT_SCOPE = "bot user.read orgunit.read group.read"
+
 
 def _get_access_token() -> str:
     client_id = os.environ.get("LINEWORKS_CLIENT_ID")
@@ -34,6 +40,8 @@ def _get_access_token() -> str:
     }
     assertion = jwt.encode(payload, private_key, algorithm="RS256")
 
+    scope = os.environ.get("LINEWORKS_SCOPE") or DEFAULT_SCOPE
+
     r = httpx.post(
         AUTH_URL,
         data={
@@ -41,11 +49,22 @@ def _get_access_token() -> str:
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
             "client_id": client_id,
             "client_secret": client_secret,
-            "scope": "bot user.read",
+            "scope": scope,
         },
         timeout=30,
     )
-    r.raise_for_status()
+    if r.status_code >= 400:
+        # 未同意スコープを要求すると発行が丸ごと失敗する。生の 400 だけ返すと
+        # 「今まで動いていたのに急に全ツールが死んだ」原因に辿り着けないため、
+        # 何を確認すべきかをメッセージに含める。
+        raise ValueError(
+            f"LINE WORKS のアクセストークン取得に失敗しました（HTTP {r.status_code}）: "
+            f"{r.text[:300]}\n"
+            f"要求したスコープ: {scope}\n"
+            "Developer Console のアプリでこれらのスコープが同意されているか確認してください。"
+            "ディレクトリ系（組織・グループ）のツールを使わない場合は、環境変数 "
+            'LINEWORKS_SCOPE="bot user.read" のように絞ることで回避できます。'
+        )
     return r.json()["access_token"]
 
 
@@ -214,6 +233,203 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["user_id"],
             },
         ),
+        types.Tool(
+            name="search_users",
+            description=(
+                "テナント内のメンバーを氏名などのキーワードで検索する。list_members はページを順送りするだけで"
+                "名前による絞り込みができないため、『○○さんの連絡先を教えて』のように特定の1名を氏名で探したい"
+                "場合はこちらの方が少ないリクエストで済む。query には1〜100文字の検索語を指定する（GET "
+                "/users/search、公式ドキュメントで実在確認済み）。並び順は既定で氏名昇順（userName asc）。"
+                "ページネーションはカーソル方式で、responseMetaData.nextCursor を次回の cursor に渡す。読み取り"
+                "専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "検索キーワード（氏名など、1〜100文字）。",
+                    },
+                    "order_by": {
+                        "type": "string",
+                        "description": "並び替え。'userName asc'（氏名昇順、既定）または 'userName desc'（氏名降順）。",
+                        "enum": ["userName asc", "userName desc"],
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "1回で取得する件数（1〜100、省略時は100）。",
+                        "default": 100,
+                    },
+                    "cursor": {
+                        "type": "string",
+                        "description": "前回レスポンスの responseMetaData.nextCursor の値。続きのページを取得する際に指定する。",
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
+        types.Tool(
+            name="list_orgunits",
+            description=(
+                "テナントの組織（部署・事業部など）一覧を取得する（GET /orgunits、公式ドキュメントで実在確認"
+                "済み）。各組織は orgUnitId・orgUnitName・parentOrgUnitId（親組織ID、階層構造を表す）・"
+                "displayLevel（階層の深さ）などを含む。『会社にどんな部署がありますか』のように組織図を把握"
+                "したい場合に使う。ページネーションはカーソル方式（responseMetaData.nextCursor）。読み取り専用。"
+                "組織の登録・更新・削除・移動APIもLINE WORKS側に存在するが、本コネクタは読み取り専用のため"
+                "未実装。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "description": "1回で取得する件数（1〜100、省略時は100）。",
+                        "default": 100,
+                    },
+                    "cursor": {
+                        "type": "string",
+                        "description": "前回レスポンスの responseMetaData.nextCursor の値。続きのページを取得する際に指定する。",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_orgunit",
+            description=(
+                "特定の組織（部署）1件の詳細情報（組織名・メールアドレス・説明・親組織ID・トーク/ノート/"
+                "カレンダー等の各機能利用フラグなど）を取得する（GET /orgunits/{orgUnitId}、公式ドキュメントで"
+                "実在確認済み）。org_unit_id には組織の内部ID、または externalKey:{組織外部キー} 形式を指定"
+                "できる。list_orgunits で対象の orgUnitId を把握してから、その1件の詳細だけを見たい場合に使う。"
+                "読み取り専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "org_unit_id": {
+                        "type": "string",
+                        "description": "組織の内部ID、または externalKey:{組織外部キー} 形式。",
+                    },
+                },
+                "required": ["org_unit_id"],
+            },
+        ),
+        types.Tool(
+            name="list_orgunit_members",
+            description=(
+                "特定の組織（部署）に所属するメンバー一覧を取得する（GET /orgunits/{orgUnitId}/members、公式"
+                "ドキュメントで実在確認済み）。org_unit_id には組織の内部ID、または externalKey:{組織外部キー} "
+                "形式を指定する。flatten=true を指定すると下位組織（子組織）のメンバーも含めて取得できる（既定"
+                "は false で直下のメンバーのみ）。『営業部のメンバーを教えて』のような問い合わせに使う。返る"
+                "のは userId 等の簡易情報のみで、氏名や連絡先の詳細が必要な場合は get_member と組み合わせる。"
+                "ページネーションはカーソル方式（responseMetaData.nextCursor）。読み取り専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "org_unit_id": {
+                        "type": "string",
+                        "description": "組織の内部ID、または externalKey:{組織外部キー} 形式。",
+                    },
+                    "flatten": {
+                        "type": "boolean",
+                        "description": "true にすると下位組織のメンバーも含めて取得する（既定は false）。",
+                        "default": False,
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "1回で取得する件数（1〜100、省略時は100）。",
+                        "default": 100,
+                    },
+                    "cursor": {
+                        "type": "string",
+                        "description": "前回レスポンスの responseMetaData.nextCursor の値。続きのページを取得する際に指定する。",
+                    },
+                },
+                "required": ["org_unit_id"],
+            },
+        ),
+        types.Tool(
+            name="list_groups",
+            description=(
+                "テナントのグループ（プロジェクトチーム・委員会など、組織階層とは別に作られる横断的なグループ）"
+                "一覧を取得する（GET /groups、公式ドキュメントで実在確認済み）。各グループは groupId・"
+                "groupName・description・groupEmail などを含む。『社内にどんなグループがありますか』のような"
+                "問い合わせに使う。ページネーションはカーソル方式（responseMetaData.nextCursor）。読み取り専用。"
+                "グループの登録・更新・削除・メンバー管理APIもLINE WORKS側に存在するが、本コネクタは読み取り"
+                "専用のため未実装。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "description": "1回で取得する件数（1〜100、省略時は100）。",
+                        "default": 100,
+                    },
+                    "cursor": {
+                        "type": "string",
+                        "description": "前回レスポンスの responseMetaData.nextCursor の値。続きのページを取得する際に指定する。",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_group",
+            description=(
+                "特定のグループ1件の詳細情報（グループ名・説明・グループメールアドレス・管理者一覧・メンバー"
+                "一覧・各機能利用フラグなど）を取得する（GET /groups/{groupId}、公式ドキュメントで実在確認"
+                "済み。ただし外部グループの取得には対応していないと公式ドキュメントに明記されている）。"
+                "group_id にはグループの内部ID、または externalKey:{グループ外部キー} 形式を指定できる。"
+                "list_groups で対象の groupId を把握してから、その1件の詳細だけを見たい場合に使う。読み取り"
+                "専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "group_id": {
+                        "type": "string",
+                        "description": "グループの内部ID、または externalKey:{グループ外部キー} 形式。",
+                    },
+                },
+                "required": ["group_id"],
+            },
+        ),
+        types.Tool(
+            name="list_group_members",
+            description=(
+                "特定のグループに所属するメンバー一覧を取得する（GET /groups/{groupId}/members、公式ドキュメント"
+                "で実在確認済み）。group_id にはグループの内部ID、または externalKey:{グループ外部キー} 形式を"
+                "指定する。メンバーは USER（ユーザー）だけでなく ORGUNIT（組織）や GROUP（別グループ）が"
+                "含まれる場合があり、type フィールドで区別できる。flatten=true を指定すると入れ子になった"
+                "組織・グループのメンバーも展開して取得できる（既定は false）。『プロジェクトAチームのメンバー"
+                "を教えて』のような問い合わせに使う。ページネーションはカーソル方式（responseMetaData."
+                "nextCursor）。読み取り専用。"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "group_id": {
+                        "type": "string",
+                        "description": "グループの内部ID、または externalKey:{グループ外部キー} 形式。",
+                    },
+                    "flatten": {
+                        "type": "boolean",
+                        "description": "true にすると入れ子の組織・グループのメンバーも展開して取得する（既定は false）。",
+                        "default": False,
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "1回で取得する件数（1〜100、省略時は100）。",
+                        "default": 100,
+                    },
+                    "cursor": {
+                        "type": "string",
+                        "description": "前回レスポンスの responseMetaData.nextCursor の値。続きのページを取得する際に指定する。",
+                    },
+                },
+                "required": ["group_id"],
+            },
+        ),
     ]
 
 
@@ -266,6 +482,65 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             elif name == "get_member":
                 r = client.get(f"/users/{arguments['user_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "search_users":
+                params: dict = {
+                    "query": arguments["query"],
+                    "count": arguments.get("count", 100),
+                }
+                if arguments.get("order_by"):
+                    params["orderBy"] = arguments["order_by"]
+                if arguments.get("cursor"):
+                    params["cursor"] = arguments["cursor"]
+                r = client.get("/users/search", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_orgunits":
+                params = {"count": arguments.get("count", 100)}
+                if arguments.get("cursor"):
+                    params["cursor"] = arguments["cursor"]
+                r = client.get("/orgunits", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_orgunit":
+                r = client.get(f"/orgunits/{arguments['org_unit_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_orgunit_members":
+                params = {"count": arguments.get("count", 100)}
+                if arguments.get("cursor"):
+                    params["cursor"] = arguments["cursor"]
+                if arguments.get("flatten") is not None:
+                    params["flatten"] = arguments["flatten"]
+                r = client.get(f"/orgunits/{arguments['org_unit_id']}/members", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_groups":
+                params = {"count": arguments.get("count", 100)}
+                if arguments.get("cursor"):
+                    params["cursor"] = arguments["cursor"]
+                r = client.get("/groups", params=params)
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "get_group":
+                r = client.get(f"/groups/{arguments['group_id']}")
+                r.raise_for_status()
+                return format_response(r.json())
+
+            elif name == "list_group_members":
+                params = {"count": arguments.get("count", 100)}
+                if arguments.get("cursor"):
+                    params["cursor"] = arguments["cursor"]
+                if arguments.get("flatten") is not None:
+                    params["flatten"] = arguments["flatten"]
+                r = client.get(f"/groups/{arguments['group_id']}/members", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
 

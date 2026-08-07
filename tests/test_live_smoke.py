@@ -24,6 +24,8 @@ RUN = os.environ.get("RUN_LIVE_SMOKE") == "1"
 LIVE_CASES = [
     ("payjp_mcp", ["PAYJP_SECRET_KEY"], "list_charges", {"limit": 1}),
     ("smarthr_mcp", ["SMARTHR_ACCESS_TOKEN", "SMARTHR_TENANT_ID"], "list_crews", {"per_page": 1}),
+    # テナント情報はパラメータ無し・1件だけ返るので、疎通確認として最も軽い
+    ("cydas_mcp", ["CYDAS_ACCESS_TOKEN"], "get_tenant_context", {}),
     # TODO: 他コネクタの読み取り専用ツールを追加していく
 ]
 

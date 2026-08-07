@@ -61,7 +61,8 @@ async def list_tools() -> list[types.Tool]:
                 "特定顧客の案件一覧を確認する目的で使う。既定では新しい順（作成日時の降順）で返り、"
                 "本コネクタには並び順を変更するパラメータはない。ページネーションは page/per_page 方式"
                 "（本ツールの既定は page=1, per_page=20。board API 側の上限は per_page=100）。client_id で"
-                "顧客を絞り込み、status で稼働状況（active=進行中 / complete=完了 / suspend=中断）を絞り込める。"
+                "顧客を絞り込み、order_status で受注ステータス、delivery_status で進捗状況を絞り込める"
+                "（いずれもコード指定。既定では失注・アーカイブ済みは含まれない）。"
                 "個々のプロジェクトに紐づく見積書・発注書・請求書などの書類詳細まで見たい場合は get_project を"
                 "使う（response_group パラメータで書類データを含められる）。読み取り専用。プロジェクトの更新・"
                 "削除エンドポイントも board API には存在するが、本コネクタには実装されていない。"
@@ -72,7 +73,14 @@ async def list_tools() -> list[types.Tool]:
                     "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
                     "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
                     "client_id": {"type": "integer", "description": "この顧客IDに紐づくプロジェクトのみに絞り込む"},
-                    "status": {"type": "string", "description": "稼働状況で絞り込む: active（進行中）/ complete（完了）/ suspend（中断）"},
+                    "order_status": {
+                        "type": "array", "items": {"type": "integer"},
+                        "description": "受注ステータスで絞り込む（複数指定可）: 1=見積中(高) 2=見積中(中) 3=見積中(低) 8=見積中(除) 4=受注確定 5=受注済 9=失注",
+                    },
+                    "delivery_status": {
+                        "type": "array", "items": {"type": "integer"},
+                        "description": "進捗状況で絞り込む（複数指定可）: 1=未着手 2=着手中 3=納品済 4=検収済",
+                    },
                 },
             },
         ),
@@ -108,7 +116,8 @@ async def list_tools() -> list[types.Tool]:
             description=(
                 "請求データの一覧を取得する。特定顧客・特定プロジェクトの請求状況をまとめて確認したい場合に"
                 "使う。ページネーションは page/per_page 方式（本ツールの既定は page=1, per_page=20。board API 側の"
-                "上限は per_page=100）。client_id・project_id で絞り込み可能。ここで返る id は請求管理データの"
+                "上限は per_page=100）。client_id（顧客）・project_no（案件No）・invoice_status で絞り込み可能"
+                "（案件IDでの絞り込みは board API に存在しない）。ここで返る id は請求管理データの"
                 "IDであり、請求書ドキュメントそのものの内容（明細・PDF等）まで詳しく見たい場合は get_project を"
                 "project_id 指定・response_group=invoice で呼び出す方が確実（board API 側では請求データIDと"
                 "請求書ドキュメントIDが別概念として扱われるため）。読み取り専用。請求書の新規作成・更新・削除を"
@@ -121,7 +130,11 @@ async def list_tools() -> list[types.Tool]:
                     "page": {"type": "integer", "description": "ページ番号（1始まり）", "default": 1},
                     "per_page": {"type": "integer", "description": "1ページあたりの件数（board API 上限100件）", "default": 20},
                     "client_id": {"type": "integer", "description": "この顧客IDに紐づく請求データのみに絞り込む"},
-                    "project_id": {"type": "integer", "description": "このプロジェクトIDに紐づく請求データのみに絞り込む"},
+                    "project_no": {"type": "integer", "description": "案件Noで絞り込む（案件IDでの絞り込みは board API に存在しない。案件IDが分かっている場合は get_project を response_group=invoice で使う）"},
+                    "invoice_status": {
+                        "type": "array", "items": {"type": "integer"},
+                        "description": "請求ステータスで絞り込む（複数指定可）: 1=未請求 4=請求OK 2=請求済 5=一部入金済 3=入金済 9=回収不能",
+                    },
                 },
             },
         ),
@@ -132,20 +145,30 @@ async def list_tools() -> list[types.Tool]:
                 "自動的に生成される。呼び出すたびに新規レコードが作成され、重複防止（べき等性）の仕組みは"
                 "board API 側にない。同じ内容で誤って複数回呼び出すと同名のプロジェクトが重複して作成される"
                 "ため、実行前に list_projects で既存の同名プロジェクトがないか確認することを推奨する。"
-                "name のみ必須で、client_id・start_date・end_date・budget は省略可能。作成後のプロジェクトの"
+                "board API 側の必須項目は name・client_id・user_id・order_status・invoice_timing_kbn の5つで、"
+                "**予算（budget）・開始日・終了日という項目は board の案件に存在しない**（渡してはいけない）。"
+                "user_id は list_users、client_id は list_clients で調べる。作成後のプロジェクトの"
                 "更新・削除エンドポイントは board API には存在するが、本コネクタには実装されていない"
                 "（必要な場合は board 管理画面から操作する）。"
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "プロジェクト名（必須）"},
-                    "client_id": {"type": "integer", "description": "紐づける顧客ID（省略可）"},
-                    "start_date": {"type": "string", "description": "開始日（YYYY-MM-DD、省略可）"},
-                    "end_date": {"type": "string", "description": "終了日（YYYY-MM-DD、省略可）"},
-                    "budget": {"type": "integer", "description": "予算（円、省略可）"},
+                    "name": {"type": "string", "description": "案件名（必須）"},
+                    "client_id": {"type": "integer", "description": "紐づける顧客ID（必須。list_clients で確認）"},
+                    "user_id": {"type": "integer", "description": "担当者のユーザーID（必須。list_users で確認）"},
+                    "order_status": {
+                        "type": "integer",
+                        "description": "受注ステータス（必須）: 1=見積中(高) 2=見積中(中) 3=見積中(低) 8=見積中(除) 4=受注確定 5=受注済 9=失注",
+                    },
+                    "invoice_timing_kbn": {
+                        "type": "integer",
+                        "description": "請求タイミング（必須）: 1=一括請求 2=定期請求 3=分割請求",
+                    },
+                    "estimate_date": {"type": "string", "description": "見積日（YYYY-MM-DD、省略可）"},
+                    "delivery_date": {"type": "string", "description": "納期（YYYY-MM-DD、省略可）"},
                 },
-                "required": ["name"],
+                "required": ["name", "client_id", "user_id", "order_status", "invoice_timing_kbn"],
             },
         ),
         types.Tool(
@@ -296,7 +319,9 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "per_page": arguments.get("per_page", 20),
                 }
                 if arguments.get("name"):
-                    params["name"] = arguments["name"]
+                    # 公式のパラメータ名は name_cont（部分一致）。`name` は無効で、
+                    # board API は不明なパラメータを無視するため**絞り込まれず全件返っていた**。
+                    params["name_cont"] = arguments["name"]
                 r = client.get("/clients", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
@@ -307,9 +332,13 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "per_page": arguments.get("per_page", 20),
                 }
                 if arguments.get("client_id"):
-                    params["client_id"] = arguments["client_id"]
-                if arguments.get("status"):
-                    params["status"] = arguments["status"]
+                    params["client_id_eq"] = arguments["client_id"]
+                # board API に `status` というパラメータは存在しない（無視されて全件返る）。
+                # 受注ステータスは order_status_in[]、進捗は delivery_status_in[]（いずれもコード指定）。
+                if arguments.get("order_status"):
+                    params["order_status_in[]"] = _csv(arguments["order_status"])
+                if arguments.get("delivery_status"):
+                    params["delivery_status_in[]"] = _csv(arguments["delivery_status"])
                 r = client.get("/projects", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
@@ -327,24 +356,34 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "page": arguments.get("page", 1),
                     "per_page": arguments.get("per_page", 20),
                 }
+                # /invoices の絞り込みは案件側の項目に project_ 接頭辞が付く（公式仕様）。
+                # `client_id` / `project_id` は無効なパラメータで、無視されて全件返っていた。
+                # 案件IDでの絞り込みはAPIに無いので、案件Noで絞る（または get_project を使う）。
                 if arguments.get("client_id"):
-                    params["client_id"] = arguments["client_id"]
-                if arguments.get("project_id"):
-                    params["project_id"] = arguments["project_id"]
+                    params["project_client_id_eq"] = arguments["client_id"]
+                if arguments.get("project_no"):
+                    params["project_project_no_eq"] = arguments["project_no"]
+                if arguments.get("invoice_status"):
+                    params["invoice_status_in[]"] = _csv(arguments["invoice_status"])
                 r = client.get("/invoices", params=params)
                 r.raise_for_status()
                 return format_response(r.json())
 
             elif name == "create_project":
-                payload: dict = {"name": arguments["name"]}
-                if arguments.get("client_id"):
-                    payload["client_id"] = arguments["client_id"]
-                if arguments.get("start_date"):
-                    payload["start_date"] = arguments["start_date"]
-                if arguments.get("end_date"):
-                    payload["end_date"] = arguments["end_date"]
-                if arguments.get("budget") is not None:
-                    payload["budget"] = arguments["budget"]
+                # 必須は name / client_id / user_id / order_status / invoice_timing_kbn（公式仕様）。
+                # 以前は name だけを送り、存在しない start_date / end_date / budget を渡していたため
+                # 実際には作成できなかった（board の案件に予算・開始日・終了日という項目は無い）。
+                payload: dict = {
+                    "name": arguments["name"],
+                    "client_id": arguments["client_id"],
+                    "user_id": arguments["user_id"],
+                    "order_status": arguments["order_status"],
+                    "invoice_timing_kbn": arguments["invoice_timing_kbn"],
+                }
+                if arguments.get("estimate_date"):
+                    payload["estimate_date"] = arguments["estimate_date"]
+                if arguments.get("delivery_date"):
+                    payload["delivery_date"] = arguments["delivery_date"]
                 r = client.post("/projects", json=payload)
                 r.raise_for_status()
                 return format_response(r.json())

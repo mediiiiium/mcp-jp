@@ -71,6 +71,109 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="get_employee",
+            description=(
+                "従業員コード（code）を指定して従業員1名の情報を取得する。get_employees の絞り込み版で、"
+                "対象の従業員コードが既にわかっている場合に全件取得を避けられる。employee_code には従業員コード"
+                "（code。人事異動等で変わりうる社員番号）を指定する（record_time 等が要求する不変の識別子 key ではない"
+                "点に注意）。date を指定するとその時点（過去は最大3年前、未来は最大1年後まで）の情報を返す（省略時は"
+                "当日時点）。include_resigner=true で退職済みでも取得可能にする。書き込みは行わない。" + _BLACKOUT_NOTE
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "employee_code": {"type": "string", "description": "従業員コード（get_employees のレスポンスの code）"},
+                    "date": {
+                        "type": "string",
+                        "description": "基準日 YYYY-MM-DD（省略時は当日。過去は最大3年前、未来は最大1年後まで指定可）",
+                    },
+                    "include_resigner": {
+                        "type": "boolean",
+                        "description": "true にすると基準日時点で退職済みでも取得できるようにする（既定 false）",
+                    },
+                    "additional_fields": {
+                        "type": "string",
+                        "description": "get_employees と同様、レスポンスに追加するプロパティをカンマ区切りで指定",
+                    },
+                },
+                "required": ["employee_code"],
+            },
+        ),
+        types.Tool(
+            name="get_divisions",
+            description=(
+                "所属（division）データの一覧を取得する。code（所属コード）と name（所属名）、dayBorderTime"
+                "（日またぎの締め時刻）を返す。get_employees / get_daily_workings / get_monthly_workings / "
+                "get_daily_schedules / get_timerecords の division 引数に渡せる有効な所属コードを事前に確認するのに使う"
+                "（これらのAPIは従業員単位の絞り込みができず division 絞り込みが前提のため、まず本ツールで所属コード一覧を"
+                "把握しておくと組み立てやすい）。パラメータは無く、常に全所属を返す。書き込みは行わない。" + _BLACKOUT_NOTE
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="get_working_types",
+            description=(
+                "雇用区分（正社員・契約社員・アルバイト等）のマスタデータ一覧を取得する。code（雇用区分コード）と "
+                "name（雇用区分名）を返す。get_employees のレスポンスに含まれる typeCode の意味を確認するのに使う。"
+                "パラメータは無く、常に全雇用区分を返す。書き込みは行わない。" + _BLACKOUT_NOTE
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="get_employee_groups",
+            description=(
+                "従業員グループのマスタデータ一覧を取得する。code（グループコード）と name（グループ名）、"
+                "additional_fields=category 指定時はカテゴリ情報も返す。対象企業が従業員グループ機能を利用できない場合"
+                "はデータを取得できない（空またはエラーになりうる）。書き込みは行わない。" + _BLACKOUT_NOTE
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "additional_fields": {
+                        "type": "string",
+                        "description": "レスポンスに追加するプロパティをカンマ区切りで指定（例: category）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="get_timerecords",
+            description=(
+                "指定期間の実際の打刻イベント一覧（出勤・退勤・休憩開始/終了・外出・外出から戻りの各打刻時刻そのもの）を"
+                "取得する。get_daily_workings が返す分単位の集計値とは異なり、個々の打刻時刻（time）・打刻種別（code/name）"
+                "・打刻時の所属（divisionCode/divisionName）・位置情報（latitude/longitude）を日付ごとにグループ化して"
+                "返す。employee_keys（従業員識別キー。カンマ区切りで複数指定可）と division（所属コード）は同時指定不可"
+                "（どちらか一方のみ使用可能。両方省略した場合の挙動は未確認）。ondivision は division 指定時のみ有効で、"
+                "true=所属基準、false=出勤先基準の打刻データ（既定 true）。start_date/end_date は省略可能（省略時は"
+                "当日が対象）だが、指定する場合は両方同時に指定する必要があり、期間は最大62日まで。additional_fields="
+                "currentDateEmployee を指定するとレスポンスに従業員名・従業員コードが展開される。書き込みは行わない。"
+                + _BLACKOUT_NOTE
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "employee_keys": {
+                        "type": "string",
+                        "description": "従業員識別キーをカンマ区切りで指定（division と同時指定不可）",
+                    },
+                    "division": {
+                        "type": "string",
+                        "description": "所属コードで絞り込む（employee_keys と同時指定不可）",
+                    },
+                    "ondivision": {
+                        "type": "boolean",
+                        "description": "division 指定時のみ有効。true=所属基準、false=出勤先基準の打刻データ（既定 true）",
+                    },
+                    "start_date": {"type": "string", "description": "開始日 YYYY-MM-DD（省略可。指定する場合は end_date と同時指定必須。過去は最大3年前まで）"},
+                    "end_date": {"type": "string", "description": "終了日 YYYY-MM-DD（start_date との期間は最大62日、未来は最大1年後まで）"},
+                    "additional_fields": {
+                        "type": "string",
+                        "description": "レスポンスに追加するプロパティ（例: currentDateEmployee で従業員名・コード等を展開）",
+                    },
+                },
+            },
+        ),
+        types.Tool(
             name="get_daily_workings",
             description=(
                 "指定期間の日別勤怠集計データ（従業員ごとの所定時間・残業時間・深夜時間・遅刻/早退時間・休憩時間などの"
@@ -239,6 +342,45 @@ def _dispatch(name: str, arguments: dict) -> list[types.TextContent]:
             if additional_fields := arguments.get("additional_fields"):
                 params["additionalFields"] = additional_fields
             r = client.get("/employees", params=params)
+
+        elif name == "get_employee":
+            employee_code = arguments["employee_code"]
+            params = {}
+            if date := arguments.get("date"):
+                params["date"] = date
+            if "include_resigner" in arguments:
+                params["includeResigner"] = arguments["include_resigner"]
+            if additional_fields := arguments.get("additional_fields"):
+                params["additionalFields"] = additional_fields
+            r = client.get(f"/employees/{employee_code}", params=params)
+
+        elif name == "get_divisions":
+            r = client.get("/divisions")
+
+        elif name == "get_working_types":
+            r = client.get("/working-types")
+
+        elif name == "get_employee_groups":
+            params = {}
+            if additional_fields := arguments.get("additional_fields"):
+                params["additionalFields"] = additional_fields
+            r = client.get("/employee-groups", params=params)
+
+        elif name == "get_timerecords":
+            params = {}
+            if employee_keys := arguments.get("employee_keys"):
+                params["employeeKeys"] = employee_keys
+            if division := arguments.get("division"):
+                params["division"] = division
+            if "ondivision" in arguments:
+                params["ondivision"] = arguments["ondivision"]
+            if start_date := arguments.get("start_date"):
+                params["start"] = start_date
+            if end_date := arguments.get("end_date"):
+                params["end"] = end_date
+            if additional_fields := arguments.get("additional_fields"):
+                params["additionalFields"] = additional_fields
+            r = client.get("/daily-workings/timerecord", params=params)
 
         elif name == "get_daily_workings":
             params = {

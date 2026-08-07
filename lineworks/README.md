@@ -55,6 +55,13 @@ LINE WORKS Developer Console でアプリを作成し、以下を取得してく
 | `send_user_message` | ユーザーにテキストDMを送信（べき等ではない） |
 | `list_members` | テナントのメンバー一覧を取得（カーソルページネーション、count/order_by/sort_order/search_filter_type 対応） |
 | `get_member` | 特定メンバー（ユーザーID/ログインID/externalKey）の詳細情報を取得 |
+| `search_users` | メンバーを氏名などのキーワードで検索 |
+| `list_orgunits` | テナントの組織（部署）一覧を取得 |
+| `get_orgunit` | 特定の組織（部署）1件の詳細情報を取得 |
+| `list_orgunit_members` | 特定の組織（部署）に所属するメンバー一覧を取得（flatten対応） |
+| `list_groups` | テナントのグループ一覧を取得 |
+| `get_group` | 特定のグループ1件の詳細情報を取得（外部グループは不可） |
+| `list_group_members` | 特定のグループに所属するメンバー一覧を取得（flatten対応） |
 
 ## API の既知の制限事項
 
@@ -66,7 +73,26 @@ LINE WORKS Developer Console でアプリを作成し、以下を取得してく
   送信はべき等ではないため、同じ内容で複数回呼び出すと重複送信されます。
 - **トークルーム作成APIは未実装**: `POST /bots/{botId}/channels`（メンバー1〜100名を指定して新規トークルーム
   を作成）は LINE WORKS 側に存在しますが、本コネクタでは実装していません。
-- **ユーザーの作成・更新・削除APIは未実装**: 本コネクタは読み取り専用（`list_members`/`get_member`）です。
+- **ユーザーの作成・更新・削除APIは未実装**: 本コネクタは読み取り専用（`list_members`/`get_member`/`search_users`）です。
+- **組織・グループの作成・更新・削除・メンバー管理APIは未実装**: `POST/PUT/PATCH/DELETE /orgunits`、
+  `POST /orgunits/{orgUnitId}/move`、`POST/PUT/PATCH/DELETE /groups`、グループの管理者・メンバー登録/削除
+  APIなどはLINE WORKS側に存在しますが、本コネクタは読み取り専用（`list_orgunits`/`get_orgunit`/
+  `list_orgunit_members`/`list_groups`/`get_group`/`list_group_members`）です。
+- **ユーザー起点の所属グループ・所属組織一覧APIは未実装**: `GET /users/{userId}/groups`（ユーザーの所属
+  グループ一覧）と `GET /users/{userId}/orgunits`（ユーザーの所属組織一覧）は公式ドキュメントでエンドポイント
+  の実在を確認済みですが、本コネクタでは見送りました。組織・グループ起点で `list_orgunit_members` /
+  `list_group_members` から辿ることで多くのユースケースをカバーできるため、ツール数を抑える判断です
+  （実在未確認による見送りではなく、スコープを絞る設計判断）。必要であれば追加実装は容易です。
+- **組織・グループ系APIには追加スコープが必要**: `list_orgunits`/`get_orgunit`/`list_orgunit_members`/
+  `list_groups`/`get_group`/`list_group_members` を使うには、Developer Console のアプリ設定で
+  `orgunit.read` および `group.read`（またはより広い `directory`/`directory.read`）スコープを有効化し、
+  管理者の同意を得ておく必要があります（本コネクタは既定でこの2スコープをトークン発行時に要求します）。
+- **⚠️ 既存環境からの更新時の注意**: LINE WORKS は同意されていないスコープを要求すると
+  **トークン発行そのものが失敗**します。つまり上記スコープを有効化しないまま更新すると、
+  組織・グループ系だけでなく**既存のボット・メッセージ系ツールも含めて全て使えなくなります**。
+  Developer Console でスコープを追加できない場合は、環境変数 `LINEWORKS_SCOPE` で
+  要求スコープを上書きしてください（例: `LINEWORKS_SCOPE="bot user.read"` で更新前と同じ挙動に戻ります。
+  この場合、組織・グループ系ツールは権限エラーになります）。
 
 ## 認証について
 

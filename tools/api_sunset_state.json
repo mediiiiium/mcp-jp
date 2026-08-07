@@ -4,6 +4,12 @@
     "akashi": {"api_version": "unversioned", "last_reviewed": "2026-07-02", "sunset_date": null, "note": "cooperation API、パスにバージョン番号なし"},
     "base-ec": {"api_version": "v1", "last_reviewed": "2026-07-02", "sunset_date": null, "note": ""},
     "board": {"api_version": "v1", "last_reviewed": "2026-07-02", "sunset_date": null, "note": ""},
+    "cydas": {
+      "api_version": "v1",
+      "last_reviewed": "2026-08-06",
+      "sunset_date": null,
+      "note": "CTM 2.0 API。パスは /people/v1/。異動情報のみ v2 が併存し、本コネクタは v2 を使用"
+    },
     "cloudsign": {"api_version": "unversioned", "last_reviewed": "2026-07-02", "sunset_date": null, "note": "パスにバージョン番号なし"},
     "esa": {"api_version": "unversioned", "last_reviewed": "2026-07-02", "sunset_date": null, "note": "パスにバージョン番号なし"},
     "freshdesk": {"api_version": "v2", "last_reviewed": "2026-07-02", "sunset_date": null, "note": ""},

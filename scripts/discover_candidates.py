@@ -30,10 +30,11 @@ import argparse
 import json
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass, field, asdict
 from datetime import date
-from urllib.parse import urlparse, quote_plus
+from urllib.parse import urlparse, urlunparse, quote_plus
 
 import httpx
 from bs4 import BeautifulSoup
@@ -92,6 +93,7 @@ IMPLEMENTED_DOMAINS = {
     "thebase.in",        # base-ec
     "the-board.jp",      # board
     "cloudsign.jp",      # cloudsign
+    "cydas.com",         # cydas
     "esa.io",            # esa
     "freshdesk.com",     # freshdesk
     "cybozu.com",        # garoon
@@ -171,33 +173,89 @@ STRUCTURAL_PATTERNS = (
     re.compile(r"\"swagger\"\s*:\s*\"2"),                          # Swagger 2.0 JSON
 )
 
-STATE_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_state.json")
-OUT_PATH = os.path.join(os.path.dirname(__file__), "../notes/candidates_auto.md")
-ENV_PATH = os.path.join(os.path.dirname(__file__), "../.env")
+# 開発者専用ホストの接頭辞。マーケティングサイトはこの種のサブドメインを持たないので、
+# ここに 200 で着地したこと自体が「本物のdevdocs」の証拠になる。
+# 2026-07-03 の誤検知（NetBot/Proflly）は主ドメイン配下のパスで起きており、この判定には乗らない。
+DEV_HOST_PREFIXES = ("developers.", "developer.", "api.", "docs.")
+
+# detect_api() が1ドメインに使ってよい総時間。
+# httpx の timeout はリクエスト単位なので、リダイレクトが連なると1ホップごとに予算が付き直し、
+# 応答をゆっくり返すサーバー相手には上限にならない。実測で1ドメイン192.9秒かかった例があり、
+# そのペースだと746件の完走に27時間かかる。総時間で切る。
+DETECT_API_BUDGET_SEC = 20
+
+# 接続タイムアウトは「1アドレスあたり」であって「1リクエストあたり」ではない。
+# httpx の同期トランスポートは socket.create_connection 相当で、DNSが返したアドレスを
+# 直列に総当たりする。PRONI(CloudFront)は saas.imitsu.jp に IPv6×8 + IPv4×4 の
+# 計12アドレスを返すので、詰まると connect の12倍まで膨らむ。
+# 2026-08-06 実測: 生ソケットの connect(timeout=30) が240秒（≒12アドレス分）、
+# 同時刻に curl は同URLを1.2秒（curl は Happy Eyeballs で並列に試すので影響を受けない）。
+# 「timeout を設定したのに1ドメイン80〜240秒かかる」の正体がこれ。
+# 詰まる条件はサーバー側なので消せない。connect を詰めて最悪値を抑える。
+#   最悪 12アドレス × 2秒 = 24秒（従来の3秒設定だと36秒、10秒設定だと120秒）
+HTTP_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
+MAX_REDIRECTS = 5
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+# 出力先。このスクリプトが吐く候補リストには「まだ着手していない候補サービスの実名」が
+# 並ぶため公開できない。単体の公開リポジトリとして使う場合は notes/ しか置き場がないが、
+# 非公開の親リポジトリ配下に置かれている場合は必ずそちら（mcp-private/）へ書く。
+# notes/ は公開ミラーの対象で、ここに書くと publish_mirror の policy_check が弾く。
+_PARENT = os.path.normpath(os.path.join(_HERE, "../.."))
+# 親が非公開モノレポであることの決め手は publish_mirror.py の存在（公開ミラーの送り出し口）。
+# mcp-private/ の存在だけで判定すると、公開リポジトリをたまたま同名ディレクトリの隣に
+# clone しただけで出力先が変わってしまう。
+_IS_MONOREPO = os.path.isfile(os.path.join(_PARENT, "publish", "publish_mirror.py"))
+_PRIVATE_DIR = os.path.join(_PARENT, "mcp-private")
+_OUT_DIR = (_PRIVATE_DIR if _IS_MONOREPO and os.path.isdir(_PRIVATE_DIR)
+            else os.path.join(_HERE, "../notes"))
+
+STATE_PATH = os.path.join(_OUT_DIR, "candidates_state.json")
+OUT_PATH = os.path.join(_OUT_DIR, "candidates_auto.md")
 # フルスキャンで新規に Tier1 入りした候補の一覧（CI が読んで Issue 化する）。state と違いコミットしない一時ファイル。
-NEW_TIER1_PATH = os.path.join(os.path.dirname(__file__), "../notes/new_tier1_candidates.json")
+NEW_TIER1_PATH = os.path.join(_OUT_DIR, "new_tier1_candidates.json")
+# 走行中の中間結果。フルスキャンは746サービスで1〜2時間かかるので、途中で死んだときに
+# 全部やり直しにならないようカテゴリ完了ごとに書く。完走したら消す（state とは別物で、
+# state はあくまで「前回の完走結果」＝新規Tier1判定の基準として保つ）。
+PROGRESS_PATH = os.path.join(_OUT_DIR, "candidates_progress.json")
+
+# .env の探索先。単体リポジトリなら直下、モノレポに取り込まれている場合は親側にある。
+ENV_PATHS = [
+    os.path.join(_HERE, "../.env"),
+    os.path.normpath(os.path.join(_HERE, "../../.env")),
+]
 
 
 def load_dotenv():
-    """プロジェクト直下の .env を os.environ に流し込む（既存の環境変数は上書きしない）。
+    """.env を os.environ に流し込む（既存の環境変数は上書きしない）。
 
     依存を増やさないための最小実装。GITHUB_TOKEN をここで供給するので、
     一度 .env に書けば毎回 --token を渡さなくてよくなる。.env は .gitignore 済み。
+
+    GitHub の検索APIは未認証だと 10req/分と厳しく、候補数百件のフルスキャンでは
+    レート制限待ちで実行時間が桁違いになる。トークンを拾えないまま走り出すと
+    気づけないので、見つからなかった場合は警告を出す。
     """
-    if not os.path.exists(ENV_PATH):
-        return
-    with open(ENV_PATH, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, val = line.partition("=")
-            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+    for path in ENV_PATHS:
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+    if not os.environ.get("GITHUB_TOKEN"):
+        print("⚠ GITHUB_TOKEN が見つかりません（.env か --token で指定してください）。"
+              "未認証だと GitHub 検索が 10req/分に制限され、フルスキャンに数時間かかります。")
 
 
 @dataclass
 class Signals:
     api_hard: bool = False
+    api_check_timeout: bool = False     # 探索が時間切れ（＝「APIが無い」と確認できていない）
     api_url: str = ""
     api_evidence: list = field(default_factory=list)
     has_openapi: bool = False           # OpenAPI/Swagger 公開（API実在の硬い証拠 かつ 開発者志向）
@@ -205,6 +263,7 @@ class Signals:
     global_giant: bool = False          # 海外グローバル大手
     ecosystem_hits: int | None = None   # 「<名前> 代理店/構築」検索ヒット数（弱い代理指標）
     mcp_exists: bool = False
+    mcp_check_failed: bool = False      # MCP有無を確認できなかった（＝「無い」と区別する）
     mcp_url: str = ""
     self_implemented: bool = False      # 自社の既存コネクタと同一ドメイン（IMPLEMENTED_DOMAINS 一致）
     official_ship_risk: int = 0         # 0-100。高いほど公式が出しそう＝降格
@@ -215,8 +274,15 @@ class Signals:
 def fetch_services(category_slug: str, category_name: str) -> list[dict]:
     url = f"{PRONI_BASE}/cate-{category_slug}/serviceList"
     try:
-        r = httpx.get(url, timeout=15, follow_redirects=True, headers=UA)
+        # 一覧は587KB前後あるので読み取りは長めに。接続だけは HTTP_TIMEOUT と同じ2秒で切る
+        # （スカラーで timeout=15 と書くと connect も15秒になり、12アドレス総当たりで180秒に化ける）。
+        r = httpx.get(url, timeout=httpx.Timeout(20.0, connect=2.0),
+                      follow_redirects=True, headers=UA)
         r.raise_for_status()
+        # PRONI 側のボット緩和は 202 + 空ボディを返す（GitHub runner の IP から実行すると
+        # 全リクエストがこれになる）。raise_for_status() は 2xx を通すので明示的に弾く。
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code}（{len(r.content)} bytes）: ボット緩和の可能性")
     except Exception as e:
         print(f"  ✗ 取得失敗 ({category_name}): {e}")
         return []
@@ -248,13 +314,44 @@ def fetch_services(category_slug: str, category_name: str) -> list[dict]:
             "proni_url": href if href.startswith("http") else PRONI_BASE + href,
         })
 
+    # 200 が返っているのに0件、は「取得失敗」と区別がつかないまま静かに空スキャンになる。
+    # GitHub Actions の runner から実行すると全カテゴリ0件になる事象があるため、
+    # 「サーバが別の中身を返した」のか「HTMLの構造が変わった」のかをログで切り分けられるようにする。
+    if not services:
+        title = ""
+        t = soup.find("title")
+        if t:
+            title = t.get_text(strip=True)[:120]
+        print(f"\n  ⚠ 0件: status={r.status_code} bytes={len(r.content)} "
+              f"anchors={len(soup.find_all('a'))} title={title!r}")
+
     return services
 
 
-def resolve_domain(proni_url: str) -> str:
-    """PRONIサービスページから公式サイトドメインを取得する。"""
+def resolve_official_url(proni_url: str) -> str:
+    """PRONIサービスページから公式サイトURLを「パスごと」取得する。
+
+    ここは746件ぶん必ず通るのでスキャン全体の律速。timeout はスカラーで書かないこと
+    （HTTP_TIMEOUT のコメント参照。connect が12アドレス分に化ける）。
+
+    2026-08-06 まではここでドメインだけを返していた。PRONIの「情報取得元」リンクは
+    製品ごとのパスを持っている（例: www.example.com/business/services/<製品>.html）のに、
+    それを捨ててドメインにしていた。結果、複数の製品を抱えるベンダーでは
+    detect_api がベンダー全社の開発者ポータルを拾い、「その製品のAPI」として計上する。
+    2026-08-06 のフルスキャンでは Tier1 6件のうち2件がこれで、拾った開発者ポータルの
+    本文に当該製品名が1回も出てこなかった（該当サービス名は mcp-private 側のスキャン結果を参照）。
+
+    「ベンダーのAPIか、その製品のAPIか」を自動で判定する案は2つ測って両方捨てた:
+      1. API文書に製品名が出るか → developer.kingoftime.jp に「給与」0回、
+         developer.smarthr.jp に「タレント」0回。正例を殺す。
+      2. 製品ページがAPI文書へリンクするか → freee・KING OF TIME は0件。同じく正例を殺す。
+    どちらもゲートにすると、このrepoが2回踏んでいる「締めすぎ」を再発させる。
+    なので判定はしない。製品URLを捨てずに持ち回り、レポートで api_url と並べて出す
+    （人間が見れば数秒で分かる。実際その2件はそうやって落とした）。
+    """
     try:
-        r = httpx.get(proni_url, timeout=10, follow_redirects=True, headers=UA)
+        r = httpx.get(proni_url, timeout=httpx.Timeout(10.0, connect=2.0),
+                      follow_redirects=True, headers=UA)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
 
@@ -268,9 +365,12 @@ def resolve_domain(proni_url: str) -> str:
             if not domain or any(s in domain for s in SKIP):
                 continue
             if any(kw in text for kw in ["情報取得元", "公式", "サービスサイト", "公式HP"]):
-                return domain
-    except Exception:
-        pass
+                # 計測用クエリ（?fr=top_lfo&set_ip2cinfo=true 等）は製品の識別に不要なので落とす
+                return urlunparse(urlparse(href)._replace(query="", fragment=""))
+    except Exception as e:
+        # 黙って "" を返すとサービスが1件、痕跡なく候補から消える。
+        # このパイプラインは「静かに0件」で何度も時間を溶かしているので必ず出す。
+        print(f"  ✗ 公式URL解決失敗: {type(e).__name__} {proni_url}", flush=True)
     return ""
 
 
@@ -331,6 +431,22 @@ def _has_structural_evidence(raw_html: str, body_lower: str) -> bool:
     return any(p.search(raw_html) or p.search(body_lower) for p in STRUCTURAL_PATTERNS)
 
 
+def _is_dedicated_dev_host(url: str, final_url: str) -> bool:
+    """developers.example.com のような開発者専用ホストに、別ホストへ飛ばされず着地したか。
+
+    STRUCTURAL_PATTERNS は <pre>/<code>/curl 例といった「HTMLに実物が載っている」前提だが、
+    最近の開発者ポータルはJSで描画するので初期HTMLにそれが無い。実測では
+    developers.freee.co.jp（91KB, title "freee Developers Hub"）も
+    developers.hubspot.jp（199KB, title "HubSpot開発者向けサイト"）も構造的証拠ゼロで落ちていた。
+    専用ホストの存在自体を証拠として扱い、この取りこぼしを埋める。
+    """
+    host = urlparse(url).netloc.lower()
+    if not any(host.startswith(p) for p in DEV_HOST_PREFIXES):
+        return False
+    # マーケTOPや認証基盤など別ホストへ飛ばされていたら証拠にしない
+    return host == urlparse(final_url).netloc.lower()
+
+
 def detect_api(domain: str) -> Signals:
     """APIドキュメントを硬く判定する。URL 200では不十分なので本文の中身を見る。
 
@@ -344,55 +460,75 @@ def detect_api(domain: str) -> Signals:
     if not domain:
         return sig
 
-    for pattern in API_PATTERNS:
-        url = pattern.format(d=domain)
-        try:
-            r = httpx.get(url, timeout=8, follow_redirects=True, headers=UA)
-        except Exception:
-            continue
-        if r.status_code >= 400:
-            continue
+    deadline = time.time() + DETECT_API_BUDGET_SEC
+    client = httpx.Client(timeout=HTTP_TIMEOUT, follow_redirects=True,
+                          max_redirects=MAX_REDIRECTS, headers=UA)
+    try:
+        for pattern in API_PATTERNS:
+            if time.time() > deadline:
+                # 予算切れ。「APIが無い」ではなく「調べ切れなかった」ので印を残す。
+                sig.api_check_timeout = True
+                break
 
-        final_url = str(r.url)
+            url = pattern.format(d=domain)
+            try:
+                r = client.get(url)
+            except Exception:
+                continue
+            if r.status_code >= 400:
+                continue
 
-        # 陰性シグナル1: マーケティングTOPへのリダイレクト（devdocsの実体なし）
-        if _is_redirect_to_homepage(url, final_url):
-            continue
-        # 陰性シグナル2: SSO/認証ウォール（公開ドキュメントではない）
-        if _is_auth_wall(final_url):
-            continue
+            final_url = str(r.url)
 
-        body = r.text.lower()
-        evidence = []
-        if any(k in body for k in API_STRONG):
-            evidence += [k for k in API_STRONG if k in body]
-        weak_hits = [k for k in API_WEAK if k in body]
-        evidence += weak_hits
+            # 陰性シグナル1: マーケティングTOPへのリダイレクト（devdocsの実体なし）
+            if _is_redirect_to_homepage(url, final_url):
+                continue
+            # 陰性シグナル2: SSO/認証ウォール（公開ドキュメントではない）
+            if _is_auth_wall(final_url):
+                continue
 
-        strong_hit = any(k in body for k in API_STRONG)
-        keyword_hard = strong_hit or len(weak_hits) >= 2
-        if not keyword_hard:
-            continue
+            body = r.text.lower()
+            evidence = []
+            if any(k in body for k in API_STRONG):
+                evidence += [k for k in API_STRONG if k in body]
+            weak_hits = [k for k in API_WEAK if k in body]
+            evidence += weak_hits
 
-        # 構造的証拠を要求: キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
-        # （NetBotの「APIとは」解説ブログ、Profllyの無関係な告知ページがこのパターン）
-        if not _has_structural_evidence(r.text, body):
-            continue
+            strong_hit = any(k in body for k in API_STRONG)
+            keyword_hard = strong_hit or len(weak_hits) >= 2
+            if not keyword_hard:
+                continue
 
-        sig.api_hard = True
-        sig.api_url = final_url
-        sig.api_evidence = evidence[:6]
-        sig.has_openapi = ("openapi" in body) or ("swagger" in body)
-        # 英語doc判定: html lang か 本文の日本語率
-        lang = ""
-        m = re.search(r'<html[^>]*\blang=["\']?([a-zA-Z-]+)', r.text)
-        if m:
-            lang = m.group(1).lower()
-        text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
-        sig.english_docs = lang.startswith("en") or (
-            len(text) > 500 and _japanese_ratio(text) < 0.02
-        )
-        return sig
+            # キーワードが無関係な記事に偶然含まれているだけのケースを弾く。
+            # （NetBotの「APIとは」解説ブログ、Profllyの無関係な告知ページがこのパターン）
+            # 証拠は2通り: HTMLに実物が載っている（構造的証拠）か、開発者専用ホストに着地したか。
+            # 前者だけを条件にしていた結果、JS描画のポータルを全部取りこぼしていた
+            # （実測: 3カテゴリ104件で api_hard=0件。freee も HubSpot も落ちていた）。
+            structural = _has_structural_evidence(r.text, body)
+            dev_host = _is_dedicated_dev_host(url, final_url)
+            if not (structural or dev_host):
+                continue
+
+            if dev_host and not structural:
+                evidence.insert(0, "開発者専用ホスト")
+
+            sig.api_hard = True
+            sig.api_check_timeout = False   # 見つかったので予算切れは関係ない
+            sig.api_url = final_url
+            sig.api_evidence = evidence[:6]
+            sig.has_openapi = ("openapi" in body) or ("swagger" in body)
+            # 英語doc判定: html lang か 本文の日本語率
+            lang = ""
+            m = re.search(r'<html[^>]*\blang=["\']?([a-zA-Z-]+)', r.text)
+            if m:
+                lang = m.group(1).lower()
+            text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
+            sig.english_docs = lang.startswith("en") or (
+                len(text) > 500 and _japanese_ratio(text) < 0.02
+            )
+            return sig
+    finally:
+        client.close()
 
     return sig
 
@@ -419,38 +555,128 @@ def ecosystem_signal(name: str) -> int | None:
 
 # ── シグナル4: MCP/公式の存在 ─────────────────────────────────
 
-def mcp_exists(service_name: str, token: str) -> tuple[bool, str]:
-    """既存MCPの有無。日本語名は英語リポジトリにマッチしにくいので語を足して2回引く。"""
+def _search_retry_wait(r: httpx.Response) -> int:
+    """レート制限に当たったとき、次にいつ叩けるか。ヘッダに従い、無ければ61秒。"""
+    retry_after = r.headers.get("retry-after")
+    if retry_after and retry_after.isdigit():
+        return max(5, min(int(retry_after), 300))
+    reset = r.headers.get("x-ratelimit-reset")
+    if reset and reset.isdigit():
+        return max(5, min(int(int(reset) - time.time()) + 2, 300))
+    return 61
+
+
+def _github_search(query: str, headers: dict, attempts: int = 4) -> dict:
+    """GitHub検索。検索APIは 30回/分と厳しいので、制限に当たったら reset まで待って引き直す。
+    全部失敗したときだけ例外を投げる。呼び出し側はそれを「判定不能」に倒すこと。"""
+    for i in range(attempts):
+        r = httpx.get(
+            "https://api.github.com/search/repositories",
+            params={"q": query, "per_page": 10}, headers=headers, timeout=15,
+        )
+        if r.status_code in (403, 429):
+            wait = _search_retry_wait(r)
+            print(f"  ⚠ GitHub rate limit。{wait}秒待機（{i + 1}/{attempts}）...", flush=True)
+            time.sleep(wait)
+            continue
+        r.raise_for_status()
+        return r.json()
+    raise RuntimeError(f"レート制限で {attempts} 回とも引けなかった: {query}")
+
+
+# ブランド名を取り出すときに落とすサブドメインと公開サフィックス。
+BRAND_SUBDOMAINS = ("www.", "biz.", "app.", "jp.", "cloud.", "service.", "my.")
+BRAND_SUFFIXES = {"com", "net", "org", "jp", "co", "ne", "ad", "or", "io",
+                  "ltd", "inc", "cloud", "app", "tech", "work", "biz", "info"}
+# 短すぎるブランド名（ntt, sas 等）は無関係なリポジトリを大量に拾うので使わない。
+BRAND_MIN_LEN = 4
+
+
+def _brand_from_domain(domain: str) -> str:
+    """ドメインからベンダー名を1語取り出す。freee.co.jp→freee / biz.moneyforward.com→moneyforward"""
+    host = (domain or "").lower().strip()
+    for p in BRAND_SUBDOMAINS:
+        if host.startswith(p):
+            host = host[len(p):]
+            break
+    labels = [x for x in host.split(".") if x]
+    while len(labels) > 1 and labels[-1] in BRAND_SUFFIXES:
+        labels.pop()
+    return labels[-1] if labels else ""
+
+
+def mcp_exists(service_name: str, domain: str, token: str) -> tuple[bool | None, str]:
+    """既存MCPの有無。
+
+    戻り値の第1要素は3値。True=あり / False=無い / None=確認できなかった。
+    以前はエラー時に False を返していたが、False は「MCP無し」＝候補として生き残る、を意味する。
+    つまり検索が失敗するほど Tier1 が増える fail-open になっていた。
+
+    2026-08-06、同じ fail-open が別の層に残っていたのを修正した。
+    以前はサービス名の完全一致を要求していた（`name_lower in repo_name`）ため、
+    `"freee勤怠管理" in "freee-mcp"` が False になり、公式リポジトリを取りこぼしていた。
+    公式MCPは英語名なので日本語の製品名が丸ごと入ることはまずない。実害として、
+    ★482 の freee/freee-mcp が存在するのに freee 製品7件が Tier1（着手候補）に並んだ。
+    ドメイン由来のベンダー名で引き直す。
+
+    2026-08-06、同じ病の3例目。ベンダー名には BRAND_MIN_LEN の下限があるのに
+    **サービス名側には無く**、3文字の名前が部分一致で誤爆していた。実測:
+      RPM → mcperf-rpm（mcperf の RPM パッケージ。無関係）
+      GEN → mcp-ui（説明文の "generative" に "gen" が一致）
+    名前が4文字未満のサービスは744件中55件あり、うち4件が「MCPあり」扱いで
+    候補から消えていた。短い名前は検索では決着しないので、名前側の一致は使わず、
+    ベンダー名で引く。ベンダー名も短くて使えないなら None（判定不能）を返す。
+    False（＝MCP無し）にしてしまうと、確認できていないものが候補として通ってしまう。
+    """
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
+    brand = _brand_from_domain(domain)
+    name_lower = service_name.lower()
+    # 短い名前は部分一致が当たりすぎて信用できない（上記 RPM / GEN）。
+    name_usable = len(name_lower) >= BRAND_MIN_LEN
+    if not name_usable and len(brand) < BRAND_MIN_LEN:
+        # 名前もベンダー名も短い。この手法では判定できないので、黙って消さず保留に回す。
+        print(f"  ? MCP有無を判定できず（名前もドメインも短い）: {service_name} / {domain}",
+              flush=True)
+        return None, ""
+    # 「マネーフォワード クラウド会計」→「マネーフォワード」。製品名の後半を落とした先頭語も見る。
+    first_token = name_lower.split()[0] if name_lower.split() else ""
+
     queries = [f'"{service_name}" mcp', f'{service_name} mcp server']
+    if len(brand) >= BRAND_MIN_LEN:
+        queries.insert(0, f"{brand} mcp server")
+
     for query in queries:
         try:
-            r = httpx.get(
-                "https://api.github.com/search/repositories",
-                params={"q": query, "per_page": 3}, headers=headers, timeout=10,
-            )
-            if r.status_code == 403:
-                print("  ⚠ GitHub rate limit。60秒待機...")
-                time.sleep(61)
-                r = httpx.get(
-                    "https://api.github.com/search/repositories",
-                    params={"q": query, "per_page": 3}, headers=headers, timeout=10,
-                )
-            r.raise_for_status()
-            data = r.json()
-            items = data.get("items", [])
-            if data.get("total_count", 0) > 0 and items:
-                name_lower = service_name.lower()
-                for item in items:
-                    repo_name = (item.get("name") or "").lower()
-                    repo_desc = (item.get("description") or "").lower()
-                    if name_lower in repo_name or name_lower in repo_desc:
-                        return True, item["html_url"]
+            data = _github_search(query, headers)
         except Exception as e:
-            print(f"  ✗ GitHub検索エラー: {e}")
+            print(f"  ✗ GitHub検索エラー（判定不能）: {e}", flush=True)
+            return None, ""
+        for item in data.get("items", []):
+            repo_name = (item.get("name") or "").lower()
+            repo_desc = (item.get("description") or "").lower()
+            # MCPサーバーであること自体を必ず確認する。ベンダー名だけの一致だと
+            # 無関係なリポジトリを「MCPあり」と誤判定し、良い候補を握り潰す。
+            if "mcp" not in f"{repo_name} {repo_desc}":
+                continue
+            # ベンダー名がドメイン由来だと一般語になることがある（channel.io→"channel"）。
+            # 説明文まで見ると誤爆する。実例: AlexAI-MCP/cc-channel-mem は
+            # 「ClaudeCode の Discord/Telegram チャンネル用メモリ」で、同名ベンダーとは無関係。
+            # ベンダー名側の判定は、リポジトリ名に ベンダー名と "mcp" が両方出るときに限る。
+            # これで cc-channel-mem（mcp無し）も MCP23016（channel無し）も落ちる。
+            brand_hit = (len(brand) >= BRAND_MIN_LEN
+                         and brand in repo_name and "mcp" in repo_name)
+            hit = (
+                (name_usable and (name_lower in repo_name or name_lower in repo_desc))
+                or brand_hit
+                # 日本語の先頭語（「マネーフォワード クラウド会計」→「マネーフォワード」）は
+                # 一般語になりにくいので説明文まで見てよい。
+                or (len(first_token) >= BRAND_MIN_LEN and first_token in repo_desc)
+            )
+            if hit:
+                return True, item["html_url"]
         time.sleep(1)
     return False, ""
 
@@ -472,6 +698,10 @@ def score_official_risk(sig: Signals) -> int:
 def assign_tier(sig: Signals) -> str:
     if sig.mcp_exists or sig.self_implemented:
         return "deprecate"          # 既にMCPあり（自社実装含む） → 使う側に回す
+    if sig.mcp_check_failed:
+        # MCPの有無が確認できていない以上、着手候補には上げられない。保留に置けば、
+        # 次回検索が通ったときに Tier1 へ上がり「新規Tier1」として拾い直される。
+        return "Tier3"
     if not sig.api_hard:
         return "Tier3"              # API実在が硬く確認できない
     if sig.global_giant:
@@ -485,22 +715,33 @@ def evaluate(svc: dict, token: str, with_ecosystem: bool = True) -> dict:
     """1サービスを全シグナル評価し、ティアまで決めた候補dictを返す。"""
     name = svc["name"]
 
-    has_mcp, mcp_url = mcp_exists(name, token)
-    domain = svc.get("domain") or resolve_domain(svc["proni_url"])
+    # ドメインを先に解決する。mcp_exists() がブランド名の取り出しにドメインを使うため。
+    # official_url は製品パス込み。detect_api はドメイン単位なので domain を渡すが、
+    # 「そのAPIが本当にこの製品のものか」は人が見るしかないので official_url も残す
+    # （resolve_official_url のコメント参照）。
+    official_url = svc.get("official_url") or ""
+    domain = svc.get("domain") or ""
+    if not domain:
+        official_url = resolve_official_url(svc["proni_url"])
+        domain = _to_domain(official_url)
+    has_mcp, mcp_url = mcp_exists(name, domain, token)
     sig = detect_api(domain)
-    sig.mcp_exists = has_mcp
+    sig.mcp_check_failed = has_mcp is None
+    sig.mcp_exists = has_mcp is True
     sig.mcp_url = mcp_url
     sig.self_implemented = is_implemented_domain(domain)
     sig.global_giant = any(g in domain for g in GLOBAL_GIANTS)
 
     # 利用者規模は Tier1 候補の優先度づけにしか使わないので、API硬判定◯のときだけ取る
-    if with_ecosystem and sig.api_hard and not has_mcp and not sig.self_implemented and not sig.global_giant:
+    if (with_ecosystem and sig.api_hard and has_mcp is False
+            and not sig.self_implemented and not sig.global_giant):
         sig.ecosystem_hits = ecosystem_signal(name)
 
     sig.official_ship_risk = score_official_risk(sig)
     tier = assign_tier(sig)
 
-    return {**svc, "domain": domain, "tier": tier, "signals": asdict(sig)}
+    return {**svc, "domain": domain, "official_url": official_url,
+            "tier": tier, "signals": asdict(sig)}
 
 
 # ── 出力 ──────────────────────────────────────────────────────
@@ -512,6 +753,12 @@ TIER_LABEL = {
     "Tier3": "Tier 3 — 保留（API不明 or 海外大手）",
     "deprecate": "deprecate — 既存MCPあり（使う側）",
 }
+
+
+def _short_url(url: str, limit: int = 42) -> str:
+    """表示用にURLを詰める。スキームと www. を落とし、長ければ末尾を … にする。"""
+    s = re.sub(r"^https?://(www\.)?", "", url or "").rstrip("/")
+    return s if len(s) <= limit else s[:limit - 1] + "…"
 
 
 def _sort_key(c: dict):
@@ -542,8 +789,11 @@ def write_markdown(candidates: list[dict]):
             continue
         lines.append(f"## {TIER_LABEL[tier]}（{len(items)}件）")
         lines.append("")
-        lines.append("| サービス名 | カテゴリ | ドメイン | 利用者規模 | リスク | 根拠 | リンク |")
-        lines.append("|-----------|---------|--------|:--------:|:----:|------|------|")
+        # 製品ページとAPI検出先は必ず横に並べる。この2つが食い違っているとき
+        # （製品ページ=vendor.com/services/<製品>.html / API=developer.vendor.com）は、別製品のAPIを
+        # 拾っているので候補にならない。自動判定はできないので目視用に出す。
+        lines.append("| サービス名 | カテゴリ | 製品ページ | API検出先 | 利用者規模 | リスク | 根拠 |")
+        lines.append("|-----------|---------|----------|----------|:--------:|:----:|------|")
         for c in sorted(items, key=_sort_key):
             sig = c["signals"]
             hits = sig.get("ecosystem_hits")
@@ -563,11 +813,15 @@ def write_markdown(candidates: list[dict]):
                 note.append("API: " + " · ".join(sig["api_evidence"][:3]))
             if not note:
                 note.append("API硬判定なし")
-            link = sig.get("api_url") or c.get("proni_url", "")
+            official = c.get("official_url") or ""
+            product_cell = (f"[{_short_url(official)}]({official})" if official
+                            else c.get("domain", "") or "—")
+            api_url = sig.get("api_url") or ""
+            api_cell = f"[{_short_url(api_url)}]({api_url})" if api_url else "—"
             lines.append(
-                f"| {c['name']} | {c['category']} | {c.get('domain','')} "
+                f"| {c['name']} | {c['category']} | {product_cell} | {api_cell} "
                 f"| {hits_s} | {sig.get('official_ship_risk',0)} "
-                f"| {'; '.join(note)} | [link]({link}) |"
+                f"| {'; '.join(note)} |"
             )
         lines.append("")
 
@@ -591,12 +845,28 @@ def load_state() -> dict:
         return json.load(f).get("candidates", {})
 
 
+def save_progress(candidates: list[dict], done_categories: list[str]):
+    with open(PROGRESS_PATH, "w", encoding="utf-8") as f:
+        json.dump({"done_categories": done_categories,
+                   "candidates": candidates}, f, ensure_ascii=False, indent=2)
+
+
+def load_progress() -> tuple[list[dict], set[str]]:
+    if not os.path.exists(PROGRESS_PATH):
+        return [], set()
+    with open(PROGRESS_PATH, encoding="utf-8") as f:
+        d = json.load(f)
+    return d.get("candidates", []), set(d.get("done_categories", []))
+
+
 # ── フルスキャン ──────────────────────────────────────────────
 
-def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int | None = None):
+def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int | None = None,
+              resume: bool = False):
     print("=== MCP候補 スキャン ===\n")
     prev_state = load_state()
     candidates: list[dict] = []
+    done_categories: list[str] = []
 
     cats = CATEGORIES
     if only_slugs:
@@ -604,6 +874,15 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
         if not cats:
             print(f"該当カテゴリなし: {only_slugs}（スラッグは CATEGORIES を参照）")
             return
+
+    if resume:
+        candidates, done = load_progress()
+        done_categories = sorted(done)
+        if candidates:
+            print(f"中断分を引き継ぎ: {len(done_categories)}カテゴリ / {len(candidates)}件は再評価しません")
+            cats = [(n, s) for (n, s) in cats if n not in done]
+            if not cats:
+                print("全カテゴリが完了済みです。仕上げだけ行います。")
 
     for category_name, slug in cats:
         print(f"\n[{category_name}] サービス取得中...")
@@ -620,9 +899,24 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
             print(f"{c['tier']} (risk={c['signals']['official_ship_risk']})")
             time.sleep(1)
 
+        # カテゴリ単位で中間保存。ここで落ちても失うのは直近1カテゴリぶんだけになる。
+        done_categories.append(category_name)
+        save_progress(candidates, done_categories)
+        print(f"  [中間保存] {len(done_categories)}カテゴリ / {len(candidates)}件", flush=True)
+
+    # 全カテゴリ0件は「候補が無い」ではなく取得側の異常。ここで state / md を書くと
+    # 空の結果が前回分を上書きし、以後の「新規Tier1」判定が全部無意味になる。書く前に落とす。
+    if not candidates:
+        print("\n✗ 全カテゴリで0件。PRONI 側の取得に失敗しています（上の ⚠ 行を参照）。"
+              "\n  state と md は更新せずに終了します。")
+        sys.exit(1)
+
     candidates.sort(key=_sort_key)
     write_markdown(candidates)
     save_state(candidates)
+    # 完走したので中間ファイルは用済み。残すと次回 --resume が誤って引き継いでしまう。
+    if os.path.exists(PROGRESS_PATH):
+        os.remove(PROGRESS_PATH)
 
     # 新規Tier1検出: 前回 state で Tier1 でなかった（＝存在しなかった、または下位ティアだった）ものだけを拾う。
     # これが「候補が湧いたら開発にパスする」導線のトリガーになる。
@@ -636,6 +930,19 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
     counts = {t: sum(1 for c in candidates if c["tier"] == t) for t in TIER_ORDER}
     print(f"\n完了: Tier1={counts['Tier1']} / Tier2={counts['Tier2']} "
           f"/ Tier3={counts['Tier3']} / deprecate={counts['deprecate']}")
+
+    # 判定不能が多い回の結果は信用しない。何件を取りこぼしたかを必ず出す。
+    unknown = sum(1 for c in candidates if c["signals"].get("mcp_check_failed"))
+    if unknown:
+        print(f"  ⚠ MCP有無を確認できず Tier3 に落としたもの: {unknown}/{len(candidates)}件"
+              f"（{unknown * 100 // len(candidates)}%）。多いなら結果は不完全なので回し直すこと。")
+    else:
+        print(f"  MCP有無は全{len(candidates)}件で確認できています。")
+
+    timed_out = sum(1 for c in candidates if c["signals"].get("api_check_timeout"))
+    if timed_out:
+        print(f"  ⚠ API探索が時間切れ（APIの有無を確認できていない）: "
+              f"{timed_out}/{len(candidates)}件（{timed_out * 100 // len(candidates)}%）")
     print(f"  → {OUT_PATH}")
     print(f"  → {STATE_PATH}")
     if new_tier1:
@@ -652,8 +959,10 @@ def watch(token: str):
     """Tier1/2 を再評価し、ティア変化（昇格/降格/deprecate）だけを報告する。"""
     prev = load_state()
     if not prev:
-        print("state が無いので、まず引数なしでフルスキャンしてください。")
-        return
+        # 以前はここで exit 0 していたため、state が復元できていない週も CI は緑になり、
+        # 「毎週何もしていない」ことに気づけなかった。落として気づけるようにする。
+        print("✗ state が無いので再評価できません。まず引数なしでフルスキャンしてください。")
+        sys.exit(1)
 
     targets = [c for c in prev.values() if c["tier"] in ("Tier1", "Tier2")]
     print(f"=== ウォッチャー: Tier1/2 の {len(targets)}件を再評価 ===\n")
@@ -661,7 +970,8 @@ def watch(token: str):
     changes = []
     for c in targets:
         svc = {"name": c["name"], "category": c["category"],
-               "proni_url": c.get("proni_url", ""), "domain": c.get("domain", "")}
+               "proni_url": c.get("proni_url", ""), "domain": c.get("domain", ""),
+               "official_url": c.get("official_url", "")}
         new = evaluate(svc, token, with_ecosystem=False)
         if new["tier"] != c["tier"]:
             changes.append((c["name"], c["tier"], new["tier"], new["signals"]))
@@ -696,13 +1006,16 @@ def main():
                         help="対象カテゴリslugをカンマ区切りで限定（例: line-marketing-tool,crm）")
     parser.add_argument("--max-per-category", type=int, default=None,
                         help="各カテゴリの先頭N件だけ評価（token無しの試走用）")
+    parser.add_argument("--resume", action="store_true",
+                        help="中断したフルスキャンの続きから（完了済みカテゴリは再評価しない）")
     args = parser.parse_args()
 
     if args.watch:
         watch(args.token)
     else:
         slugs = [s.strip() for s in args.categories.split(",") if s.strip()] or None
-        full_scan(args.token, only_slugs=slugs, max_per_cat=args.max_per_category)
+        full_scan(args.token, only_slugs=slugs, max_per_cat=args.max_per_category,
+                  resume=args.resume)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ Claude などの AI エージェントから、日本のクラウドサービス
 | [`kingtime/`](./kingtime/) | [KING OF TIME](https://www.kingtime.jp/) | 勤怠管理 |
 | [`smarthr/`](./smarthr/) | [SmartHR](https://smarthr.jp/) | 人事・労務 |
 | [`kaonavi/`](./kaonavi/) | [カオナビ](https://kaonavi.jp/) | タレントマネジメント |
+| [`cydas/`](./cydas/) | [CYDAS](https://www.cydas.com/) | タレントマネジメント |
 | [`mazrica/`](./mazrica/) | [Mazrica Sales](https://mazrica.com/) | SFA |
 | [`invox/`](./invox/) | [invox](https://invox.jp/) | 受取請求書 |
 | [`smaregi/`](./smaregi/) | [スマレジ](https://smaregi.jp/) | POS・店舗管理 |

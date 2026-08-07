@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-05",
+  "generated": "2026-07-28",
   "connectors": {
     "akashi": {
       "tool_count": 7,
@@ -138,17 +138,24 @@
       "notes": ""
     },
     "herp": {
-      "tool_count": 5,
+      "tool_count": 12,
       "tools": [
         "list_candidacies",
         "get_candidacy",
         "list_requisitions",
+        "list_contacts",
+        "list_candidacy_files",
+        "list_assignments",
+        "get_evaluation",
+        "list_requisition_groups",
+        "get_requisition_group",
+        "list_users",
         "list_timeline_comments",
         "add_timeline_comment"
       ],
-      "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "docs_url": "https://public-api.herp.cloud/hire/public/doc",
+      "last_deep_check": "2026-07-13",
+      "notes": "2026-07-13 深掘り: 公式ドキュメントで実在確認した読み取り専用ツールを追加（commit 2fdb24d）。見送り分の理由は README「既知の制約」に記載済み。"
     },
     "hrmos-kintai": {
       "tool_count": 8,
@@ -200,17 +207,24 @@
       "notes": "2026-07-05深掘り: 公式APIドキュメント(https://invox.jp/api/、Redoc/OpenAPI3.0形式)をHTML内埋め込みJSON(__redoc_state)から全68パス取得し確認。既存5ツールはパラメータ・仕様とも齟齬なし。読み取り専用で以下5ツールを追加: get_supplier(仕入先詳細/invoice_receive/supplier/get)、list_supplier_trade_conditions(仕入先取引設定一覧/invoice_receive/supplier_trade_condition/list)、list_upload_settings(アップロード設定一覧/invoice_receive/upload_setting/list)、get_invoice_download_url(請求書ファイル一時URL取得/invoice_receive/invoice/download_url/get、URL文字列を返すのみでバイナリ本体は扱わない)、get_invoices_zip_download_url(複数請求書のzipダウンロードURL取得/invoice_receive/invoice/multiple_download_url/get、最大100件、invoice_idsはカンマ区切り単一パラメータ)。書き込み系を1件追加: confirm_invoice_message(請求書ワークフローメッセージの確認済み化/invoice_receive/invoice/message/confirm、request bodyはinvox_company_code+invoice_id+message_idのみで請求書データ自体は変更しない低リスク操作だが取り消し不可)。見送り: invoice/apply・reject・fix・unfix・set_exported(いずれもワークフロー承認ルートや会計確定状態を変更する影響範囲の大きい書き込み系、実在確認済みだが慎重方針のため見送り)、請求書ファイル本体・添付ファイルの直接ダウンロード(GET download, GET attached_file/download。バイナリレスポンスでテキストベース設計と不整合、代わりにURL取得系ツールを実装)、仕入先・支払設定・取引設定のCRUD書き込み系、invoice_issue(発行請求書)・expense(経費精算)・e_storage(電子帳簿保存)の3ドメイン全般(書類登録・スタッフ/部門/プロジェクトマスタ管理は書き込み系のみでGET一覧・詳細取得APIが存在しないため対象外。invoice_issueの唯一のGETはファイルURL取得のみで一覧を辿る手段が無い)、部門・プロジェクト・勘定科目・補助勘定科目・汎用マスタ・スタッフのマスタ管理(いずれもPOST/DELETEのみでGET一覧APIが提供されていない)。"
     },
     "jobcan-workflow": {
-      "tool_count": 5,
+      "tool_count": 12,
       "tools": [
         "list_requests",
         "get_request",
         "list_users",
         "list_projects",
-        "list_companies"
+        "list_companies",
+        "list_forms",
+        "list_groups",
+        "list_positions",
+        "get_user",
+        "get_company",
+        "get_generic_master",
+        "validate_token"
       ],
       "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-13",
+      "notes": "2026-07-13 深掘り: 公式ドキュメントで実在確認した読み取り専用ツールを追加（commit fdd52e6）。見送り分の理由は README「既知の制約」に記載済み。"
     },
     "jooto": {
       "tool_count": 6,
@@ -227,17 +241,22 @@
       "notes": ""
     },
     "kaonavi": {
-      "tool_count": 5,
+      "tool_count": 10,
       "tools": [
         "list_members",
         "get_member",
         "list_departments",
         "list_layouts",
-        "get_sheet"
+        "get_sheet",
+        "list_member_layouts",
+        "list_users",
+        "list_roles",
+        "list_enum_options",
+        "get_advanced_permissions"
       ],
       "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-13",
+      "notes": "2026-07-13 深掘り: 公式ドキュメントで実在確認した読み取り専用ツールを追加（commit 60e9bc4）。見送り分の理由は README「既知の制約」に記載済み。"
     },
     "karte": {
       "tool_count": 5,
@@ -253,30 +272,42 @@
       "notes": ""
     },
     "kingtime": {
-      "tool_count": 5,
+      "tool_count": 10,
       "tools": [
         "get_employees",
+        "get_employee",
+        "get_divisions",
+        "get_working_types",
+        "get_employee_groups",
+        "get_timerecords",
         "get_daily_workings",
         "get_monthly_workings",
         "get_daily_schedules",
         "record_time"
       ],
       "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-28",
+      "notes": "読み取り5ツール追加（従業員個別・所属・勤務区分・従業員グループ・打刻データ）。旧READMEの制約「打刻時刻は取得不可」は GET /daily-workings/timerecord の実在確認により解消。打刻一括登録・申請承認系・人件費系は実在確認済みだがリスク/スコープ外で見送り。公式ドキュメントは developer.kingtime.jp → developer.kingoftime.jp に移転済み。"
     },
     "lineworks": {
-      "tool_count": 5,
+      "tool_count": 12,
       "tools": [
         "get_channel",
         "send_channel_message",
         "send_user_message",
         "list_members",
-        "get_member"
+        "get_member",
+        "search_users",
+        "list_orgunits",
+        "get_orgunit",
+        "list_orgunit_members",
+        "list_groups",
+        "get_group",
+        "list_group_members"
       ],
       "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-28",
+      "notes": "読み取り7ツール追加（ユーザー検索・組織/グループとそのメンバー）。要求スコープを orgunit.read/group.read まで拡張したため、未同意環境ではトークン発行自体が失敗し全ツールが壊れる。回避用に LINEWORKS_SCOPE で上書き可能にし、失敗時は対処を含む例外を返すようにした（親レビューで追加）。"
     },
     "lstep": {
       "tool_count": 21,
@@ -421,30 +452,44 @@
       "notes": ""
     },
     "smaregi": {
-      "tool_count": 5,
+      "tool_count": 9,
       "tools": [
         "list_products",
         "get_product",
         "list_transactions",
         "list_customers",
+        "list_stock",
+        "get_stock_changes",
+        "get_transaction_details",
+        "list_categories",
         "list_stores"
       ],
       "docs_url": "https://developers.smaregi.dev/platform-api-reference/",
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-28",
+      "notes": "読み取り4ツール追加（在庫一覧・在庫変動履歴・取引明細・部門）。在庫更新系・非同期CSVエクスポート・別系統仕様書（在庫管理/受注/ウェイター/タイムカード）は見送り。"
     },
     "smarthr": {
-      "tool_count": 5,
+      "tool_count": 15,
       "tools": [
         "list_crews",
         "get_crew",
         "list_departments",
         "list_employment_types",
-        "update_crew"
+        "update_crew",
+        "list_dependents",
+        "list_job_titles",
+        "list_grades",
+        "list_job_categories",
+        "list_recruitment_types",
+        "list_dependent_relations",
+        "list_biz_establishments",
+        "list_users",
+        "list_companies",
+        "list_payment_periods"
       ],
       "docs_url": null,
-      "last_deep_check": null,
-      "notes": ""
+      "last_deep_check": "2026-07-28",
+      "notes": "読み取り10ツール追加（扶養家族・役職・等級・職種・雇用区分・続柄・事業所・ユーザー・会社・給与支払期間）。給与明細/源泉徴収票・口座情報・産休育休・Webhook・SAML SSO は実在確認済みだが機微性/リスクで見送り。公式リファレンスはSPAのためブラウザで直接確認した。"
     },
     "talentio": {
       "tool_count": 13,

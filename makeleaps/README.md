@@ -11,10 +11,16 @@ pip install -e .
 
 ## 事前準備
 
-MakeLeaps Developer Portal でアプリケーションを作成し、以下を取得：
+MakeLeaps 管理画面の **API ユーザー画面**
+（<https://app.makeleaps.com/integrations/makeleaps/api-users/>）で「Add API Key」を押し、以下を取得：
 - Client ID
-- Client Secret
+- Client Secret（作成後に「Show API Secret」で表示）
 - Partner MID（ダッシュボードのURLまたはAPIルートから確認）
+
+**API は無料プランでは使えない**（料金ページの機能比較「MakeLeaps Rest API」は
+無料プラン × / 個人プラン ○ / 法人プラン ○ / エンタープライズ ○。2026-07-30 時点）。
+発行に審査・申請は不要（公式チュートリアルに記載なし＝管理画面で完結）。
+"Developer Portal" は**ドキュメントのサイト**でキーの発行場所ではない（ここを間違えていた）。
 
 ## 環境変数
 
@@ -54,8 +60,16 @@ MakeLeaps Developer Portal でアプリケーションを作成し、以下を�
 
 ## 制限事項・注意点
 
-- MakeLeaps API の公式ドキュメント（`https://app.makeleaps.com/api/docs/`）に基づき実装しているが、ページネーションの
+- MakeLeaps API の公式ドキュメント（`https://app.makeleaps.com/api/docs/`。機械可読版は
+  `https://app.makeleaps.com/api/llms.txt`）に基づき実装しているが、ページネーションの
   パラメータ名（`page` 等）や既定の並び順は公式ドキュメントに明記されていないため未検証。
+- レスポンスは `{"meta": {"status": ...}, "response": ...}` で包まれる。本コネクタは**それをそのまま返す**
+  （パースしないので envelope の変更に影響されない）。取り出しはモデル側の仕事になる点に注意。
+- レート上限は **120リクエスト/分・5000リクエスト/日**（公式記載）。リトライ実装は無いので、
+  429 が返ったらそのままエラーになる。
+- OAuth のトークンは **`scope: "read write"` 固定**で、読み取り専用のスコープは存在しない。
+  「読み取りしかしない」はコネクタが GET だけを叩くという意味で、権限としての保証ではない
+  （書き込み系ツール `create_document` / `send_document` は本コネクタに実装されているので、なおさら明示が必要）。
 - `create_document` は `document_template` と `client_contact_mid`（取引先担当者のMID）が必須。有効なテンプレートコードは
   `list_document_templates` で事前に確認する。
 - `send_document` は Secure Send（メール送付）のみ対応。Client Inbox 送付・郵送・Peppol送付、複数宛先指定には対応していない。
