@@ -213,8 +213,15 @@ _OUT_DIR = (_PRIVATE_DIR if _IS_MONOREPO and os.path.isdir(_PRIVATE_DIR)
 
 STATE_PATH = os.path.join(_OUT_DIR, "candidates_state.json")
 OUT_PATH = os.path.join(_OUT_DIR, "candidates_auto.md")
-# フルスキャンで新規に Tier1 入りした候補の一覧（CI が読んで Issue 化する）。state と違いコミットしない一時ファイル。
+# フルスキャンで新規に Tier1 入りした候補の一覧。state と違いコミットしない一時ファイル。
 NEW_TIER1_PATH = os.path.join(_OUT_DIR, "new_tier1_candidates.json")
+# 人が見て却下した候補。自動判定はここを覆せない。
+# これが無いと、裏取りで落とした候補が翌月のフルスキャンでそのまま「新規Tier1」として戻ってくる
+# （2026-08-07 のフルスキャンで実際に発生。「新規Tier1」3件のうち2件は、前日に
+# 「検出APIがベンダーの別製品のもの」と裏取りして手でTier3に落としたものだった。
+# 該当サービス名と裏取りの内容は mcp-private 側の却下リストにある。ここは公開ミラーに流れるので書かない）。
+# 毎月同じものを再確認させられるなら「手間なく回っている」とは言えないので、判定を残す。
+REJECTED_PATH = os.path.join(_OUT_DIR, "candidates_rejected.json")
 # 走行中の中間結果。フルスキャンは746サービスで1〜2時間かかるので、途中で死んだときに
 # 全部やり直しにならないようカテゴリ完了ごとに書く。完走したら消す（state とは別物で、
 # state はあくまで「前回の完走結果」＝新規Tier1判定の基準として保つ）。
@@ -266,6 +273,8 @@ class Signals:
     mcp_check_failed: bool = False      # MCP有無を確認できなかった（＝「無い」と区別する）
     mcp_url: str = ""
     self_implemented: bool = False      # 自社の既存コネクタと同一ドメイン（IMPLEMENTED_DOMAINS 一致）
+    rejected: bool = False              # 人が裏取りして却下済み（candidates_rejected.json）
+    rejected_reason: str = ""           # 却下理由。レポートに出して、判断を毎月やり直さずに済ませる
     official_ship_risk: int = 0         # 0-100。高いほど公式が出しそう＝降格
 
 
@@ -695,7 +704,28 @@ def score_official_risk(sig: Signals) -> int:
     return min(risk, 100)
 
 
+def load_rejected() -> dict:
+    """人が却下した候補 {サービス名: {"date":..., "reason":...}} を読む。
+
+    ファイルが無ければ空。壊れていても落とさない（却下は補助情報で、
+    読めないことを理由に744件のスキャンを止める価値はない）。
+    """
+    if not os.path.exists(REJECTED_PATH):
+        return {}
+    try:
+        with open(REJECTED_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  ⚠ 却下リストを読めませんでした（無視して続行）: {e}", flush=True)
+        return {}
+
+
 def assign_tier(sig: Signals) -> str:
+    if sig.rejected:
+        # 人が裏取りして落としたもの。自動判定より人を優先する。
+        # deprecate ではなく Tier3 に置くのは、却下理由が覆る（製品固有APIが後から出る等）
+        # 可能性を残すため。復活させたいときは却下リストから消せばよい。
+        return "Tier3"
     if sig.mcp_exists or sig.self_implemented:
         return "deprecate"          # 既にMCPあり（自社実装含む） → 使う側に回す
     if sig.mcp_check_failed:
@@ -711,9 +741,11 @@ def assign_tier(sig: Signals) -> str:
     return "Tier1"                  # Lステップ的
 
 
-def evaluate(svc: dict, token: str, with_ecosystem: bool = True) -> dict:
+def evaluate(svc: dict, token: str, with_ecosystem: bool = True,
+             rejected: dict | None = None) -> dict:
     """1サービスを全シグナル評価し、ティアまで決めた候補dictを返す。"""
     name = svc["name"]
+    rejected = load_rejected() if rejected is None else rejected
 
     # ドメインを先に解決する。mcp_exists() がブランド名の取り出しにドメインを使うため。
     # official_url は製品パス込み。detect_api はドメイン単位なので domain を渡すが、
@@ -731,10 +763,13 @@ def evaluate(svc: dict, token: str, with_ecosystem: bool = True) -> dict:
     sig.mcp_url = mcp_url
     sig.self_implemented = is_implemented_domain(domain)
     sig.global_giant = any(g in domain for g in GLOBAL_GIANTS)
+    if name in rejected:
+        sig.rejected = True
+        sig.rejected_reason = rejected[name].get("reason", "")
 
     # 利用者規模は Tier1 候補の優先度づけにしか使わないので、API硬判定◯のときだけ取る
     if (with_ecosystem and sig.api_hard and has_mcp is False
-            and not sig.self_implemented and not sig.global_giant):
+            and not sig.self_implemented and not sig.global_giant and not sig.rejected):
         sig.ecosystem_hits = ecosystem_signal(name)
 
     sig.official_ship_risk = score_official_risk(sig)
@@ -809,6 +844,9 @@ def write_markdown(candidates: list[dict]):
                 note.append("OpenAPI")
             if sig.get("global_giant"):
                 note.append("海外大手")
+            if sig.get("rejected"):
+                # 却下理由は必ず出す。理由が見えないと「なぜTier3なのか」を毎月調べ直すことになる。
+                note.append(f"却下: {sig.get('rejected_reason') or '理由未記載'}")
             if sig.get("api_hard") and sig.get("api_evidence"):
                 note.append("API: " + " · ".join(sig["api_evidence"][:3]))
             if not note:
@@ -878,8 +916,12 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
               resume: bool = False):
     print("=== MCP候補 スキャン ===\n")
     prev_state = load_state()
+    rejected = load_rejected()   # 744件ぶんファイルを開き直さないよう1回だけ読む
+    if rejected:
+        print(f"却下リスト {len(rejected)}件を適用します（{REJECTED_PATH}）\n")
     candidates: list[dict] = []
     done_categories: list[str] = []
+    failed_categories: list[str] = []
 
     cats = CATEGORIES
     if only_slugs:
@@ -903,11 +945,17 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
         if max_per_cat:
             services = services[:max_per_cat]
         print(f"  → {len(services)}件")
+
+        # PRONIのカテゴリが本当に空になることはない。0件は取得失敗（ボット緩和・回線）とみなす。
+        # 「失敗」と「本当に空」を取り違えるなら、失敗側に倒すほうが安全（消さずに残る）。
+        if not services:
+            failed_categories.append(category_name)
+            continue
         time.sleep(1)
 
         for svc in services:
             print(f"  {svc['name']}... ", end="", flush=True)
-            c = evaluate(svc, token)
+            c = evaluate(svc, token, rejected=rejected)
             candidates.append(c)
             print(f"{c['tier']} (risk={c['signals']['official_ship_risk']})")
             time.sleep(1)
@@ -931,17 +979,30 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
     # 2026-08-07、`--categories crm --max-per-category 2` の試走で 744件が2件になった。
     # 上の「全カテゴリ0件」ガードと同じ趣旨だが、あちらは0件しか見ていないので素通りする。
     # 走査した分だけ差し替え、残りは前回の値を保持する。
-    partial = bool(only_slugs or max_per_cat)
+    #
+    # 一部のカテゴリだけ取得に失敗した場合も同じ扱いにする。全滅ガード（上）は0件しか
+    # 見ていないので、20カテゴリ中3つが 202 で空になっても素通りし、その3カテゴリの
+    # サービスが state から消えたうえ「フルスキャン完走」として記録されてしまう
+    # （＝ダッシュボードの ⚠️ も出ない）。自宅回線以外で走ると現実に起きる。
+    partial = bool(only_slugs or max_per_cat) or bool(failed_categories)
+    if failed_categories:
+        print(f"\n⚠ 取得できなかったカテゴリ {len(failed_categories)}件: "
+              f"{', '.join(failed_categories)}")
+        print("  回線・ボット緩和の可能性。このカテゴリのサービスを消さないよう既存stateにマージし、")
+        print("  フルスキャン完走としては記録しません（ダッシュボードに ⚠️ が出続けます）。")
+        print("  自宅回線で `--resume` を付けて回すと、失敗したカテゴリだけ取り直せます。")
     if partial:
         merged = prev_state.copy()
         merged.update({c["name"]: c for c in candidates})
         candidates = sorted(merged.values(), key=_sort_key)
-        print(f"  部分スキャンのため既存stateにマージ（合計 {len(candidates)}件）", flush=True)
+        print(f"  既存stateにマージ（合計 {len(candidates)}件）", flush=True)
 
     write_markdown(candidates)
     save_state(candidates, full_scan_done=not partial)
     # 完走したので中間ファイルは用済み。残すと次回 --resume が誤って引き継いでしまう。
-    if os.path.exists(PROGRESS_PATH):
+    # ただし取得に失敗したカテゴリがあるときは残す。失敗分は done_categories に入れていないので、
+    # --resume を付けるとそこだけ取り直せる（消してしまうと744件を最初からやり直しになる）。
+    if os.path.exists(PROGRESS_PATH) and not failed_categories:
         os.remove(PROGRESS_PATH)
 
     # 新規Tier1検出: 前回 state で Tier1 でなかった（＝存在しなかった、または下位ティアだった）ものだけを拾う。
@@ -990,15 +1051,17 @@ def watch(token: str):
         print("✗ state が無いので再評価できません。まず引数なしでフルスキャンしてください。")
         sys.exit(1)
 
+    rejected = load_rejected()
     targets = [c for c in prev.values() if c["tier"] in ("Tier1", "Tier2")]
-    print(f"=== ウォッチャー: Tier1/2 の {len(targets)}件を再評価 ===\n")
+    print(f"=== ウォッチャー: Tier1/2 の {len(targets)}件を再評価"
+          + (f"（却下リスト {len(rejected)}件を適用）" if rejected else "") + " ===\n")
 
     changes = []
     for c in targets:
         svc = {"name": c["name"], "category": c["category"],
                "proni_url": c.get("proni_url", ""), "domain": c.get("domain", ""),
                "official_url": c.get("official_url", "")}
-        new = evaluate(svc, token, with_ecosystem=False)
+        new = evaluate(svc, token, with_ecosystem=False, rejected=rejected)
         if new["tier"] != c["tier"]:
             changes.append((c["name"], c["tier"], new["tier"], new["signals"]))
         prev[c["name"]] = new  # 状態更新

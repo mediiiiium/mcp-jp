@@ -8,6 +8,7 @@ scripts/*
 !scripts/test_detect_api.py
 !scripts/test_mcp_exists.py
 !scripts/test_resolve_official_url.py
+!scripts/test_scan_state_safety.py
 .DS_Store
 .venv*/
 __pycache__/
