@@ -829,9 +829,22 @@ def write_markdown(candidates: list[dict]):
         f.write("\n".join(lines) + "\n")
 
 
-def save_state(candidates: list[dict]):
+def save_state(candidates: list[dict], full_scan_done: bool = False):
+    """state を書く。
+
+    generated は「何かしら回った日」で、週次ウォッチでも部分スキャンでも更新される。
+    それだけだと、週次が動いている限り月次フルスキャンが死んでいても新鮮に見えてしまう。
+    このrepoは「緑なのに何もしていない」を既に一度やっているので（週次ウォッチが
+    state 不在時に exit 0 して6週間空回りした）、フルスキャンの完走日は別に持つ。
+    ダッシュボードはこちらの古さも見る。
+    """
+    prev_full = ""
+    if os.path.exists(STATE_PATH):
+        with open(STATE_PATH, encoding="utf-8") as f:
+            prev_full = json.load(f).get("last_full_scan", "")
     state = {
         "generated": date.today().isoformat(),
+        "last_full_scan": date.today().isoformat() if full_scan_done else prev_full,
         "candidates": {c["name"]: c for c in candidates},
     }
     with open(STATE_PATH, "w", encoding="utf-8") as f:
@@ -912,8 +925,21 @@ def full_scan(token: str, only_slugs: list[str] | None = None, max_per_cat: int 
         sys.exit(1)
 
     candidates.sort(key=_sort_key)
+
+    # 部分スキャン（--categories / --max-per-category）は走査した分しか手元に無い。
+    # そのまま書くと未走査のサービスが state から丸ごと消える。
+    # 2026-08-07、`--categories crm --max-per-category 2` の試走で 744件が2件になった。
+    # 上の「全カテゴリ0件」ガードと同じ趣旨だが、あちらは0件しか見ていないので素通りする。
+    # 走査した分だけ差し替え、残りは前回の値を保持する。
+    partial = bool(only_slugs or max_per_cat)
+    if partial:
+        merged = prev_state.copy()
+        merged.update({c["name"]: c for c in candidates})
+        candidates = sorted(merged.values(), key=_sort_key)
+        print(f"  部分スキャンのため既存stateにマージ（合計 {len(candidates)}件）", flush=True)
+
     write_markdown(candidates)
-    save_state(candidates)
+    save_state(candidates, full_scan_done=not partial)
     # 完走したので中間ファイルは用済み。残すと次回 --resume が誤って引き継いでしまう。
     if os.path.exists(PROGRESS_PATH):
         os.remove(PROGRESS_PATH)
