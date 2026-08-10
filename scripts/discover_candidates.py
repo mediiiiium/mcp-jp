@@ -196,6 +196,12 @@ DETECT_API_BUDGET_SEC = 20
 HTTP_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
 MAX_REDIRECTS = 5
 
+# 2xx なのに本文がこれ未満なら「ページを見られた」とみなさない。
+# ボット緩和は 4xx ではなく 200/202 + 空body で返してくることがある
+# （PRONI が GitHub Actions のIPに返したのがまさに 202 + 0バイト）。
+# 中身が無いのを「APIが無い」と読むと、回線の悪い日に候補を降格させてしまう。
+MIN_BODY_CHARS = 200
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 # 出力先。このスクリプトが吐く候補リストには「まだ着手していない候補サービスの実名」が
@@ -263,6 +269,7 @@ def load_dotenv():
 class Signals:
     api_hard: bool = False
     api_check_timeout: bool = False     # 探索が時間切れ（＝「APIが無い」と確認できていない）
+    api_check_failed: bool = False      # 1ページも中身を見られなかった（回線断・ボット緩和）
     api_url: str = ""
     api_evidence: list = field(default_factory=list)
     has_openapi: bool = False           # OpenAPI/Swagger 公開（API実在の硬い証拠 かつ 開発者志向）
@@ -472,6 +479,10 @@ def detect_api(domain: str) -> Signals:
     deadline = time.time() + DETECT_API_BUDGET_SEC
     client = httpx.Client(timeout=HTTP_TIMEOUT, follow_redirects=True,
                           max_redirects=MAX_REDIRECTS, headers=UA)
+    # 「そこにAPIドキュメントは無い」と言い切れた試行 / 中身を見られなかった試行。
+    # 両者を数え分けないと、回線断とAPI不在が同じ api_hard=False になる。
+    observed = 0
+    inconclusive = 0
     try:
         for pattern in API_PATTERNS:
             if time.time() > deadline:
@@ -483,9 +494,16 @@ def detect_api(domain: str) -> Signals:
             try:
                 r = client.get(url)
             except Exception:
+                inconclusive += 1
                 continue
             if r.status_code >= 400:
+                observed += 1       # 404 等は「そこには無い」という立派な観測
                 continue
+            if len(r.text.strip()) < MIN_BODY_CHARS:
+                # 2xx なのに空 ＝ ボット緩和の典型。観測できていない側に数える。
+                inconclusive += 1
+                continue
+            observed += 1
 
             final_url = str(r.url)
 
@@ -539,6 +557,9 @@ def detect_api(domain: str) -> Signals:
     finally:
         client.close()
 
+    # 1ページも中身を見られていないのに api_hard=False なら、それは「APIが無い」ではなく
+    # 「調べられなかった」。watch() がこれを見て state の上書きを止める。
+    sig.api_check_failed = (not sig.api_hard) and observed == 0 and inconclusive > 0
     return sig
 
 
@@ -1057,15 +1078,42 @@ def watch(token: str):
           + (f"（却下リスト {len(rejected)}件を適用）" if rejected else "") + " ===\n")
 
     changes = []
+    unverified = []
     for c in targets:
         svc = {"name": c["name"], "category": c["category"],
                "proni_url": c.get("proni_url", ""), "domain": c.get("domain", ""),
                "official_url": c.get("official_url", "")}
         new = evaluate(svc, token, with_ecosystem=False, rejected=rejected)
+        nsig = new["signals"]
+        blocked = ("API確認不可" if nsig.get("api_check_failed") else
+                   "MCP確認不可" if nsig.get("mcp_check_failed") else "")
+        if blocked and new["tier"] != c["tier"]:
+            # 降格の根拠が「確認できなかった」だけのケース。ここで書き戻すと、その候補は
+            # Tier1/2 から外れて翌週以降の再評価対象にすら入らず、次の月次フルスキャンまで
+            # 消えたままになる（週次は Tier1/2 しか見ないので自己修復しない）。
+            # 回線が悪い月曜が一度あるだけでパイプラインが空になるので、上書きしない。
+            unverified.append((c["name"], c["tier"], new["tier"], blocked))
+            time.sleep(1)
+            continue
         if new["tier"] != c["tier"]:
-            changes.append((c["name"], c["tier"], new["tier"], new["signals"]))
+            changes.append((c["name"], c["tier"], new["tier"], nsig))
         prev[c["name"]] = new  # 状態更新
         time.sleep(1)
+
+    if unverified and len(unverified) == len(targets):
+        # 全件が確認不可＝回線かボット緩和。state を書かずに落とす。
+        # generated が古いままになるので、ダッシュボードに ⚠️ が出る。
+        print(f"✗ {len(targets)}件すべて確認できませんでした（回線・ボット緩和の可能性）。")
+        for name, old, newt, why in unverified:
+            print(f"  {name}: {old} → {newt} になるところを保留（{why}）")
+        print("state は更新しません。自宅回線で再実行してください。")
+        sys.exit(1)
+
+    if unverified:
+        print(f"⚠ 確認できず保留した候補 {len(unverified)}件（降格させていません）:")
+        for name, old, newt, why in unverified:
+            print(f"  {name}: {old} のまま（{why} / 判定上は {newt}）")
+        print()
 
     if not changes:
         print("ティア変化なし。")

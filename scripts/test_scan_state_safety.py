@@ -63,6 +63,33 @@ def run_scan(tmpdir, category_results, prev_candidates):
         return json.load(f)
 
 
+def run_watch(tmpdir, prev, results):
+    """週次ウォッチを走らせる。
+
+    prev:    {サービス名: 現在のtier}
+    results: {サービス名: (再評価後のtier, 追加シグナル)} — 未指定の候補は tier 据え置き
+    """
+    dc.STATE_PATH = os.path.join(tmpdir, "state.json")
+    dc.REJECTED_PATH = os.path.join(tmpdir, "rejected.json")
+    with open(dc.STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump({"generated": "2026-01-01", "last_full_scan": "2026-01-01",
+                   "candidates": {n: _fake_candidate(n, t) for n, t in prev.items()}}, f)
+
+    def _fake_eval(svc, token, with_ecosystem=True, rejected=None):
+        tier, extra = results.get(svc["name"], (prev[svc["name"]], {}))
+        c = _fake_candidate(svc["name"], tier)
+        c["signals"].update(extra)
+        return c
+
+    dc.evaluate = _fake_eval
+    dc.time.sleep = lambda _s: None
+
+    dc.watch("")
+
+    with open(dc.STATE_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def check(label, cond, detail=""):
     print(f"  {'✓' if cond else '✗'} {label}" + (f" — {detail}" if not cond else ""))
     return cond
@@ -106,6 +133,35 @@ def main():
             with open(dc.STATE_PATH, encoding="utf-8") as f:
                 st = json.load(f)
             ok &= check("state は前回のまま", set(st["candidates"]) == {"A", "B"})
+
+    print("4) 週次ウォッチ: 確認不可を理由に降格させない")
+    with tempfile.TemporaryDirectory() as td:
+        # A は本当に降格（確認できたうえで Tier3）、B は回線が死んで確認不可。
+        st = run_watch(td,
+                       prev={"A": "Tier1", "B": "Tier1", "C": "Tier3"},
+                       results={"A": ("Tier3", {}),
+                                "B": ("Tier3", {"api_check_failed": True})})
+        ok &= check("確認できた降格は反映する", st["candidates"]["A"]["tier"] == "Tier3",
+                    f"実際: {st['candidates']['A']['tier']}")
+        ok &= check("確認不可の降格は保留する（Tier1 のまま）",
+                    st["candidates"]["B"]["tier"] == "Tier1",
+                    f"実際: {st['candidates']['B']['tier']}")
+
+    print("5) 週次ウォッチ: 全件確認不可なら state を書かずに落ちる")
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            run_watch(td, prev={"A": "Tier1", "B": "Tier2"},
+                      results={"A": ("Tier3", {"api_check_failed": True}),
+                               "B": ("Tier3", {"mcp_check_failed": True})})
+            ok &= check("exit する", False, "落ちずに戻ってきた")
+        except SystemExit as e:
+            ok &= check("exit(1) で落ちる", e.code == 1, f"code={e.code}")
+            with open(dc.STATE_PATH, encoding="utf-8") as f:
+                st = json.load(f)
+            ok &= check("generated が古いまま（ダッシュボードに ⚠️ が出る）",
+                        st["generated"] == "2026-01-01", f"実際: {st['generated']}")
+            ok &= check("Tier が据え置き",
+                        [st["candidates"][n]["tier"] for n in ("A", "B")] == ["Tier1", "Tier2"])
 
     print("\n" + ("全て通過" if ok else "失敗あり"))
     return 0 if ok else 1
