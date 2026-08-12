@@ -26,16 +26,13 @@ Claude などの AI エージェントから、日本のクラウドサービス
 | [`mazrica/`](./mazrica/) | [Mazrica Sales](https://mazrica.com/) | SFA |
 | [`invox/`](./invox/) | [invox](https://invox.jp/) | 受取請求書 |
 | [`smaregi/`](./smaregi/) | [スマレジ](https://smaregi.jp/) | POS・店舗管理 |
-| [`garoon/`](./garoon/) | [Garoon](https://garoon.cybozu.co.jp/) | グループウェア |
 | [`jobcan-workflow/`](./jobcan-workflow/) | [ジョブカン経費精算/ワークフロー](https://workflow.jobcan.ne.jp/) | 経費・ワークフロー |
 | [`base-ec/`](./base-ec/) | [BASE](https://thebase.com/) | EC |
-| [`esa/`](./esa/) | [esa](https://esa.io/) | チームナレッジ |
 | [`cloudsign/`](./cloudsign/) | [クラウドサイン](https://www.cloudsign.jp/) | 電子契約 |
 | [`herp/`](./herp/) | [HERP Hire](https://herp.co/) | 採用管理 |
 | [`talentio/`](./talentio/) | [Talentio](https://talentio.com/) | 採用管理 |
 | [`lineworks/`](./lineworks/) | [LINE WORKS](https://line-works.com/) | ビジネスチャット |
 | [`board/`](./board/) | [board](https://the-board.jp/) | 経営・請求書管理 |
-| [`jooto/`](./jooto/) | [Jooto](https://www.jooto.com/) | タスク・プロジェクト管理 |
 | [`hrmos-kintai/`](./hrmos-kintai/) | [HRMOS勤怠](https://ieyasu.co/) | 勤怠管理 |
 | [`misoca/`](./misoca/) | [Misoca](https://www.misoca.jp/) | 見積・請求書 |
 | [`makeleaps/`](./makeleaps/) | [MakeLeaps](https://www.makeleaps.jp/) | 請求書・見積書 |
@@ -52,7 +49,6 @@ Claude などの AI エージェントから、日本のクラウドサービス
 |---------|---------|---------|
 | [`pipedrive/`](./pipedrive/) | [Pipedrive](https://www.pipedrive.com/) | CRM |
 | [`freshdesk/`](./freshdesk/) | [Freshdesk](https://freshdesk.com/) | カスタマーサポート |
-| [`intercom/`](./intercom/) | [Intercom](https://www.intercom.com/) | CS・メッセージング |
 | [`trello/`](./trello/) | [Trello](https://trello.com/) | プロジェクト管理 |
 | [`toggl/`](./toggl/) | [Toggl Track](https://toggl.com/) | 時間計測 |
 | [`harvest/`](./harvest/) | [Harvest](https://www.getharvest.com/) | 時間計測・請求書 |
@@ -106,6 +102,10 @@ Claude などの AI エージェントから、日本のクラウドサービス
 | [Cloudflare](https://www.cloudflare.com/ja-jp/) | cloudflare/mcp-server-cloudflare |
 | [Vercel](https://vercel.com/) | mcp.vercel.com（2025年8月〜） |
 | [CircleCI](https://circleci.com/ja/) | CircleCI-Public/mcp-server-circleci |
+| [Garoon](https://garoon.cybozu.co.jp/) | garoon/garoon-mcp-server（**公式**・2026-08-13 確認） |
+| [esa](https://esa.io/) | esaio/esa-mcp-server（**公式**・2026-08-13 確認） |
+| [Jooto](https://www.jooto.com/) | PRTIMES/jooto-mcp（提供元 PR TIMES・2026-08-13 確認） |
+| [Intercom](https://www.intercom.com/) | intercom/intercom-mcp-server（**公式**・2026-08-13 確認） |
 
 > これらのサービスについては、過去に独自実装したコネクタを [`archive/`](./archive/) に移動し、メンテナンス対象外としています。新規利用では公式 MCP を使ってください。
 
