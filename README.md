@@ -10,50 +10,60 @@ Claude などの AI エージェントから、日本のクラウドサービス
 > このリポジトリの狙いと収益化の考え方は [戦略メモ](./docs/strategy.md) を参照。
 > その他の詳細ドキュメントは [docs/README.md](./docs/README.md) にまとめています。
 
+## メンテナンス状況
+
+**2026-10-27 から保守モードです。** 新しいコネクタの追加は止めていますが、リポジトリは公開したまま維持します。
+
+- **CI（テスト）は動かし続けます。** 依存ライブラリの破壊的変更などで壊れたら直します。
+- **各コネクタの実データでの動作確認は、時間のあるときに1本ずつ進めます。** 確認状況は下の一覧の「動作確認」列に書いています。
+  「未確認」は、公式ドキュメントに沿って実装し、構造とエラー処理のテストは CI で通しているものの、実際のアカウントではまだ動かしていないという意味です。
+  確認は [`tests/test_live_smoke.py`](./tests/test_live_smoke.py) の `LIVE_CASES` に1行足して、読み取り専用のツールで疎通を見る方法で行います。
+- Issue・PR は歓迎します。返信はベストエフォートです。
+
 ---
 
 ## コネクタ一覧
 
 ### 日本SMB向け（独自実装）
 
-| コネクタ | サービス | カテゴリ |
-|---------|---------|---------|
-| [`lstep/`](./lstep/) | [Lステップ](https://liff.line.me/) | LINE マーケティング |
-| [`kingtime/`](./kingtime/) | [KING OF TIME](https://www.kingtime.jp/) | 勤怠管理 |
-| [`smarthr/`](./smarthr/) | [SmartHR](https://smarthr.jp/) | 人事・労務 |
-| [`kaonavi/`](./kaonavi/) | [カオナビ](https://kaonavi.jp/) | タレントマネジメント |
-| [`cydas/`](./cydas/) | [CYDAS](https://www.cydas.com/) | タレントマネジメント |
-| [`mazrica/`](./mazrica/) | [Mazrica Sales](https://mazrica.com/) | SFA |
-| [`invox/`](./invox/) | [invox](https://invox.jp/) | 受取請求書 |
-| [`smaregi/`](./smaregi/) | [スマレジ](https://smaregi.jp/) | POS・店舗管理 |
-| [`jobcan-workflow/`](./jobcan-workflow/) | [ジョブカン経費精算/ワークフロー](https://workflow.jobcan.ne.jp/) | 経費・ワークフロー |
-| [`base-ec/`](./base-ec/) | [BASE](https://thebase.com/) | EC |
-| [`cloudsign/`](./cloudsign/) | [クラウドサイン](https://www.cloudsign.jp/) | 電子契約 |
-| [`herp/`](./herp/) | [HERP Hire](https://herp.co/) | 採用管理 |
-| [`talentio/`](./talentio/) | [Talentio](https://talentio.com/) | 採用管理 |
-| [`lineworks/`](./lineworks/) | [LINE WORKS](https://line-works.com/) | ビジネスチャット |
-| [`board/`](./board/) | [board](https://the-board.jp/) | 経営・請求書管理 |
-| [`hrmos-kintai/`](./hrmos-kintai/) | [HRMOS勤怠](https://ieyasu.co/) | 勤怠管理 |
-| [`misoca/`](./misoca/) | [Misoca](https://www.misoca.jp/) | 見積・請求書 |
-| [`makeleaps/`](./makeleaps/) | [MakeLeaps](https://www.makeleaps.jp/) | 請求書・見積書 |
-| [`notepm/`](./notepm/) | [NotePM](https://notepm.jp/) | 社内wiki |
-| [`relation/`](./relation/) | [Re:lation](https://ingage.jp/relation/) | CS・メール共有 |
-| [`karte/`](./karte/) | [KARTE](https://karte.io/) | MA・CDP |
-| [`akashi/`](./akashi/) | [AKASHI / MFクラウド勤怠Plus](https://ak4.jp/) | 勤怠管理 |
-| [`yappli-crm/`](./yappli-crm/) | [Yappli CRM](https://yapp.li/crm/) | モバイルCRM |
-| [`payjp/`](./payjp/) | [PAY.JP](https://pay.jp/) | 決済 |
+| コネクタ | サービス | カテゴリ | 動作確認 |
+|---------|---------|---------|---------|
+| [`lstep/`](./lstep/) | [Lステップ](https://liff.line.me/) | LINE マーケティング | 未確認 |
+| [`kingtime/`](./kingtime/) | [KING OF TIME](https://www.kingtime.jp/) | 勤怠管理 | 未確認 |
+| [`smarthr/`](./smarthr/) | [SmartHR](https://smarthr.jp/) | 人事・労務 | 未確認 |
+| [`kaonavi/`](./kaonavi/) | [カオナビ](https://kaonavi.jp/) | タレントマネジメント | 未確認 |
+| [`cydas/`](./cydas/) | [CYDAS](https://www.cydas.com/) | タレントマネジメント | 未確認 |
+| [`mazrica/`](./mazrica/) | [Mazrica Sales](https://mazrica.com/) | SFA | 未確認 |
+| [`invox/`](./invox/) | [invox](https://invox.jp/) | 受取請求書 | 未確認 |
+| [`smaregi/`](./smaregi/) | [スマレジ](https://smaregi.jp/) | POS・店舗管理 | 未確認 |
+| [`jobcan-workflow/`](./jobcan-workflow/) | [ジョブカン経費精算/ワークフロー](https://workflow.jobcan.ne.jp/) | 経費・ワークフロー | 未確認 |
+| [`base-ec/`](./base-ec/) | [BASE](https://thebase.com/) | EC | 未確認 |
+| [`cloudsign/`](./cloudsign/) | [クラウドサイン](https://www.cloudsign.jp/) | 電子契約 | 未確認 |
+| [`herp/`](./herp/) | [HERP Hire](https://herp.co/) | 採用管理 | 未確認 |
+| [`talentio/`](./talentio/) | [Talentio](https://talentio.com/) | 採用管理 | 未確認 |
+| [`lineworks/`](./lineworks/) | [LINE WORKS](https://line-works.com/) | ビジネスチャット | 未確認 |
+| [`board/`](./board/) | [board](https://the-board.jp/) | 経営・請求書管理 | 実APIと仕様を突き合わせ済み（2026-08） |
+| [`hrmos-kintai/`](./hrmos-kintai/) | [HRMOS勤怠](https://ieyasu.co/) | 勤怠管理 | 未確認 |
+| [`misoca/`](./misoca/) | [Misoca](https://www.misoca.jp/) | 見積・請求書 | 未確認 |
+| [`makeleaps/`](./makeleaps/) | [MakeLeaps](https://www.makeleaps.jp/) | 請求書・見積書 | 未確認 |
+| [`notepm/`](./notepm/) | [NotePM](https://notepm.jp/) | 社内wiki | 未確認 |
+| [`relation/`](./relation/) | [Re:lation](https://ingage.jp/relation/) | CS・メール共有 | 未確認 |
+| [`karte/`](./karte/) | [KARTE](https://karte.io/) | MA・CDP | 未確認 |
+| [`akashi/`](./akashi/) | [AKASHI / MFクラウド勤怠Plus](https://ak4.jp/) | 勤怠管理 | 未確認 |
+| [`yappli-crm/`](./yappli-crm/) | [Yappli CRM](https://yapp.li/crm/) | モバイルCRM | 未確認 |
+| [`payjp/`](./payjp/) | [PAY.JP](https://pay.jp/) | 決済 | 未確認 |
 
 ### グローバルSaaS（独自実装）
 
-| コネクタ | サービス | カテゴリ |
-|---------|---------|---------|
-| [`pipedrive/`](./pipedrive/) | [Pipedrive](https://www.pipedrive.com/) | CRM |
-| [`freshdesk/`](./freshdesk/) | [Freshdesk](https://freshdesk.com/) | カスタマーサポート |
-| [`trello/`](./trello/) | [Trello](https://trello.com/) | プロジェクト管理 |
-| [`toggl/`](./toggl/) | [Toggl Track](https://toggl.com/) | 時間計測 |
-| [`harvest/`](./harvest/) | [Harvest](https://www.getharvest.com/) | 時間計測・請求書 |
-| [`typeform/`](./typeform/) | [Typeform](https://www.typeform.com/) | フォーム作成 |
-| [`sendgrid/`](./sendgrid/) | [SendGrid](https://sendgrid.com/) | メール配信 |
+| コネクタ | サービス | カテゴリ | 動作確認 |
+|---------|---------|---------|---------|
+| [`pipedrive/`](./pipedrive/) | [Pipedrive](https://www.pipedrive.com/) | CRM | 未確認 |
+| [`freshdesk/`](./freshdesk/) | [Freshdesk](https://freshdesk.com/) | カスタマーサポート | 未確認 |
+| [`trello/`](./trello/) | [Trello](https://trello.com/) | プロジェクト管理 | 未確認 |
+| [`toggl/`](./toggl/) | [Toggl Track](https://toggl.com/) | 時間計測 | 未確認 |
+| [`harvest/`](./harvest/) | [Harvest](https://www.getharvest.com/) | 時間計測・請求書 | 未確認 |
+| [`typeform/`](./typeform/) | [Typeform](https://www.typeform.com/) | フォーム作成 | 未確認 |
+| [`sendgrid/`](./sendgrid/) | [SendGrid](https://sendgrid.com/) | メール配信 | 未確認 |
 
 ### 公式MCPが提供されているサービス
 
