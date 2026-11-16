@@ -1,4 +1,5 @@
-# vauban managed — このファイルは setup.sh が生成します。再実行で上書きされます。
+# vauban managed (v1.8.0) — このファイルは vauban の setup.sh が生成します。再実行で上書きされます。
+# スキャンの中身は https://github.com/mediiiiium/vauban/blob/main/.github/workflows/semgrep.yml
 name: Semgrep
 on:
   push:
@@ -9,31 +10,5 @@ permissions:
   security-events: write   # SARIF を Security タブへ上げるのに必要
 jobs:
   semgrep:
-    runs-on: ubuntu-latest
-    steps:
-      # 以下は GitHub 公式(first-party)の action。mutable-action-tag は @tag 参照を警告するが、
-      # このファイルは vauban 生成物で SHA pin しても再生成で戻るため、公式 action に限り nosemgrep で抑制する。
-      - uses: actions/checkout@v4  # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-      - uses: actions/setup-python@v5  # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          python-version: '3.12'
-      - run: pip install 'semgrep~=1.166'   # v1系のパッチ/ルール追従を許容しつつ再現性を確保
-      # 検出があれば --error で job を落とし push/PR をブロックする
-      - name: Semgrep scan
-        run: semgrep scan --config=auto --sarif --output=semgrep.sarif --error
-      # ブロックされても結果は必ず残す。
-      # Security タブへの上げは public/GHAS のみ可。private で未契約だと失敗するが
-      # continue-on-error で job は落とさない（ブロックは scan 側が担う）。
-      - name: Upload SARIF to GitHub Security
-        if: always()
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3  # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          sarif_file: semgrep.sarif
-      # private repo でも確認できるよう SARIF を成果物としても残す
-      - name: Upload SARIF artifact
-        if: always()
-        uses: actions/upload-artifact@v4  # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        with:
-          name: semgrep-sarif
-          path: semgrep.sarif
+    # vauban のタグ参照。SHA pin すると vauban 側の更新が届かなくなるため、意図してタグで呼ぶ。
+    uses: mediiiiium/vauban/.github/workflows/semgrep.yml@v1  # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
