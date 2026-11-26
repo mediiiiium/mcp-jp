@@ -17,6 +17,7 @@
       "path": "akashi/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/akashi/README.md",
       "skill": null,
+      "registry": null,
       "command": "akashi-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=akashi\"",
       "env": [
@@ -64,6 +65,7 @@
       "path": "base-ec/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/base-ec/README.md",
       "skill": null,
+      "registry": null,
       "command": "base-ec-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=base-ec\"",
       "env": [
@@ -126,6 +128,7 @@
       "path": "board/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/board/README.md",
       "skill": null,
+      "registry": null,
       "command": "board-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=board\"",
       "env": [
@@ -189,6 +192,7 @@
       "path": "cloudsign/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/cloudsign/README.md",
       "skill": "https://github.com/mediiiiium/mcp-jp/blob/main/skills/cloudsign/SKILL.md",
+      "registry": "io.github.mediiiiium/cloudsign",
       "command": "cloudsign-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=cloudsign\"",
       "env": [
@@ -251,6 +255,7 @@
       "path": "cydas/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/cydas/README.md",
       "skill": null,
+      "registry": null,
       "command": "cydas-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=cydas\"",
       "env": [
@@ -378,6 +383,7 @@
       "path": "freshdesk/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/freshdesk/README.md",
       "skill": null,
+      "registry": null,
       "command": "freshdesk-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=freshdesk\"",
       "env": [
@@ -425,6 +431,7 @@
       "path": "harvest/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/harvest/README.md",
       "skill": null,
+      "registry": null,
       "command": "harvest-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=harvest\"",
       "env": [
@@ -472,6 +479,7 @@
       "path": "herp/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/herp/README.md",
       "skill": null,
+      "registry": null,
       "command": "herp-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=herp\"",
       "env": [
@@ -538,6 +546,7 @@
       "path": "hrmos-kintai/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/hrmos-kintai/README.md",
       "skill": null,
+      "registry": null,
       "command": "hrmos-kintai-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=hrmos-kintai\"",
       "env": [
@@ -589,6 +598,7 @@
       "path": "invox/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/invox/README.md",
       "skill": null,
+      "registry": null,
       "command": "invox-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=invox\"",
       "env": [
@@ -652,6 +662,7 @@
       "path": "jobcan-workflow/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/jobcan-workflow/README.md",
       "skill": null,
+      "registry": null,
       "command": "jobcan-workflow-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=jobcan-workflow\"",
       "env": [
@@ -718,6 +729,7 @@
       "path": "kaonavi/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/kaonavi/README.md",
       "skill": null,
+      "registry": null,
       "command": "kaonavi-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=kaonavi\"",
       "env": [
@@ -777,6 +789,7 @@
       "path": "karte/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/karte/README.md",
       "skill": null,
+      "registry": null,
       "command": "karte-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=karte\"",
       "env": [
@@ -815,6 +828,7 @@
       "path": "kingtime/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/kingtime/README.md",
       "skill": "https://github.com/mediiiiium/mcp-jp/blob/main/skills/kingtime/SKILL.md",
+      "registry": "io.github.mediiiiium/kingtime",
       "command": "kingtime-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=kingtime\"",
       "env": [
@@ -873,6 +887,7 @@
       "path": "lineworks/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/lineworks/README.md",
       "skill": null,
+      "registry": null,
       "command": "lineworks-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=lineworks\"",
       "env": [
@@ -944,6 +959,7 @@
       "path": "lstep/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/lstep/README.md",
       "skill": null,
+      "registry": null,
       "command": "lstep-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=lstep\"",
       "env": [
@@ -1046,6 +1062,7 @@
       "path": "makeleaps/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/makeleaps/README.md",
       "skill": null,
+      "registry": null,
       "command": "makeleaps-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=makeleaps\"",
       "env": [
@@ -1090,6 +1107,7 @@
       "path": "mazrica/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/mazrica/README.md",
       "skill": null,
+      "registry": null,
       "command": "mazrica-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=mazrica\"",
       "env": [
@@ -1136,6 +1154,7 @@
       "path": "misoca/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/misoca/README.md",
       "skill": null,
+      "registry": null,
       "command": "misoca-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=misoca\"",
       "env": [
@@ -1198,6 +1217,7 @@
       "path": "notepm/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/notepm/README.md",
       "skill": null,
+      "registry": null,
       "command": "notepm-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=notepm\"",
       "env": [
@@ -1237,6 +1257,7 @@
       "path": "payjp/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/payjp/README.md",
       "skill": null,
+      "registry": null,
       "command": "payjp-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=payjp\"",
       "env": [
@@ -1275,6 +1296,7 @@
       "path": "pipedrive/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/pipedrive/README.md",
       "skill": null,
+      "registry": null,
       "command": "pipedrive-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=pipedrive\"",
       "env": [
@@ -1314,6 +1336,7 @@
       "path": "relation/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/relation/README.md",
       "skill": null,
+      "registry": null,
       "command": "relation-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=relation\"",
       "env": [
@@ -1353,6 +1376,7 @@
       "path": "sendgrid/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/sendgrid/README.md",
       "skill": null,
+      "registry": null,
       "command": "sendgrid-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=sendgrid\"",
       "env": [
@@ -1391,6 +1415,7 @@
       "path": "smaregi/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/smaregi/README.md",
       "skill": "https://github.com/mediiiiium/mcp-jp/blob/main/skills/smaregi/SKILL.md",
+      "registry": "io.github.mediiiiium/smaregi",
       "command": "smaregi-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=smaregi\"",
       "env": [
@@ -1446,6 +1471,7 @@
       "path": "smarthr/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/smarthr/README.md",
       "skill": "https://github.com/mediiiiium/mcp-jp/blob/main/skills/smarthr/SKILL.md",
+      "registry": "io.github.mediiiiium/smarthr",
       "command": "smarthr-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=smarthr\"",
       "env": [
@@ -1525,6 +1551,7 @@
       "path": "talentio/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/talentio/README.md",
       "skill": null,
+      "registry": null,
       "command": "talentio-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=talentio\"",
       "env": [
@@ -1595,6 +1622,7 @@
       "path": "toggl/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/toggl/README.md",
       "skill": null,
+      "registry": null,
       "command": "toggl-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=toggl\"",
       "env": [
@@ -1649,6 +1677,7 @@
       "path": "trello/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/trello/README.md",
       "skill": null,
+      "registry": null,
       "command": "trello-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=trello\"",
       "env": [
@@ -1688,6 +1717,7 @@
       "path": "typeform/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/typeform/README.md",
       "skill": null,
+      "registry": null,
       "command": "typeform-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=typeform\"",
       "env": [
@@ -1726,6 +1756,7 @@
       "path": "yappli-crm/",
       "readme": "https://github.com/mediiiiium/mcp-jp/blob/main/yappli-crm/README.md",
       "skill": null,
+      "registry": null,
       "command": "yappli-crm-mcp",
       "install": "pip install \"git+https://github.com/mediiiiium/mcp-jp#subdirectory=yappli-crm\"",
       "env": [

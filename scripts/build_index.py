@@ -116,6 +116,11 @@ def collect() -> list[dict]:
                     if (ROOT / "skills" / name / "SKILL.md").exists()
                     else None
                 ),
+                "registry": (
+                    json.loads((ROOT / name / "server.json").read_text(encoding="utf-8"))["name"]
+                    if (ROOT / name / "server.json").exists()
+                    else None
+                ),
                 "command": command,
                 "install": f'pip install "git+{REPO_URL}#subdirectory={name}"',
                 "env": env_vars(name, package),

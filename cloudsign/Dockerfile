@@ -9,6 +9,9 @@
 
 FROM python:3.12-slim
 
+# 公式 MCP Registry の所有権確認に使うラベル（cloudsign/server.json の name と一致させる）
+LABEL io.modelcontextprotocol.server.name="io.github.mediiiiium/cloudsign"
+
 WORKDIR /app
 
 # パッケージ定義とソースをコピーして install（エントリポイント cloudsign-mcp を生成）

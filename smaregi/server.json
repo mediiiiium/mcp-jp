@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mediiiiium/smaregi",
+  "title": "Smaregi",
+  "description": "MCP server for Smaregi (Japanese POS), read-only: products, sales, customers, stock, stores",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/mediiiiium/mcp-jp",
+    "source": "github",
+    "subfolder": "smaregi"
+  },
+  "websiteUrl": "https://github.com/mediiiiium/mcp-jp/tree/main/smaregi",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/mediiiiium/smaregi-mcp:0.1.0",
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SMAREGI_ACCESS_TOKEN",
+          "description": "OAuth2 access token for the Smaregi Platform API",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SMAREGI_CONTRACT_ID",
+          "description": "Smaregi contract ID",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
