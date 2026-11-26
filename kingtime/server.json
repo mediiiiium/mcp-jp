@@ -1,0 +1,32 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mediiiiium/kingtime",
+  "title": "KING OF TIME",
+  "description": "MCP server for KING OF TIME (Japanese attendance): employees, time records, work summaries",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/mediiiiium/mcp-jp",
+    "source": "github",
+    "subfolder": "kingtime"
+  },
+  "websiteUrl": "https://github.com/mediiiiium/mcp-jp/tree/main/kingtime",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/mediiiiium/kingtime-mcp:0.1.0",
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "KINGTIME_ACCESS_TOKEN",
+          "description": "Access token issued in KING OF TIME (Settings > API integration)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

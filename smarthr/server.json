@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mediiiiium/smarthr",
+  "title": "SmartHR",
+  "description": "MCP server for SmartHR (Japanese HR): employees, departments, employment types, job titles",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/mediiiiium/mcp-jp",
+    "source": "github",
+    "subfolder": "smarthr"
+  },
+  "websiteUrl": "https://github.com/mediiiiium/mcp-jp/tree/main/smarthr",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/mediiiiium/smarthr-mcp:0.1.0",
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SMARTHR_ACCESS_TOKEN",
+          "description": "Access token issued in the SmartHR admin console",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "SMARTHR_TENANT_ID",
+          "description": "SmartHR tenant ID (the subdomain of your *.smarthr.jp URL)",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
