@@ -13,6 +13,9 @@ KING OF TIME WebAPI の勤怠データを、MCP サーバー `kingtime-mcp` 経�
 ## 準備
 
 1. KING OF TIME 管理画面 → 設定 → API連携 で、アクセストークンを発行する
+
+> プラグイン `mcp-jp-kingtime` で入れた場合は MCP サーバーが同梱されている（Docker が必要）。下の表の環境変数を設定して Claude Code を起動し直せばよく、次の「インストールして登録する」は要らない。
+
 2. インストールして登録する
 
 ```bash

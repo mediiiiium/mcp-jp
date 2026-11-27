@@ -14,6 +14,9 @@ description: スマレジ（POS・店舗管理）の商品・売上取引と明�
 
 1. スマレジ・デベロッパーズでアプリを登録し、OAuth2（認可コードフロー）でアクセストークンを取得する。最低限のスコープ: `pos.products:read` `pos.transactions:read` `pos.customers:read` `pos.stores:read` `pos.stock:read`
 2. 契約ID（管理画面で確認できる）を控える
+
+> プラグイン `mcp-jp-smaregi` で入れた場合は MCP サーバーが同梱されている（Docker が必要）。下の表の環境変数を設定して Claude Code を起動し直せばよく、次の「インストールして登録する」は要らない。
+
 3. インストールして登録する
 
 ```bash

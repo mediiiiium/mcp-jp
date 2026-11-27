@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "smaregi": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "SMAREGI_ACCESS_TOKEN",
+        "-e",
+        "SMAREGI_CONTRACT_ID",
+        "ghcr.io/mediiiiium/smaregi-mcp:0.1.0"
+      ]
+    }
+  }
+}

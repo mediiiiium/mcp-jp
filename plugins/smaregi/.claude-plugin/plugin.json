@@ -1,0 +1,24 @@
+{
+  "name": "mcp-jp-smaregi",
+  "version": "0.1.0",
+  "description": "スマレジの商品・取引・会員・店舗・在庫を調べる（スマレジ 用 MCP サーバーとスキル）。Look up Smaregi POS products, transactions, customers, stores and stock levels through the Smaregi Platform API. Useful for sales checks, stock checks and store-level summaries.",
+  "author": {
+    "name": "mediiiiium",
+    "url": "https://github.com/mediiiiium"
+  },
+  "homepage": "https://github.com/mediiiiium/mcp-jp/tree/main/plugins/smaregi",
+  "repository": "https://github.com/mediiiiium/mcp-jp",
+  "license": "MIT",
+  "keywords": [
+    "smaregi",
+    "スマレジ",
+    "POS・店舗管理",
+    "japan",
+    "mcp"
+  ],
+  "network": {
+    "hosts": [
+      "api.smaregi.jp"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "kingtime": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "KINGTIME_ACCESS_TOKEN",
+        "ghcr.io/mediiiiium/kingtime-mcp:0.1.0"
+      ]
+    }
+  }
+}

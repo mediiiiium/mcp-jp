@@ -559,17 +559,35 @@ pip install -e .
 
 各コネクタの詳細なセットアップ手順・必要な環境変数は、各ディレクトリの `README.md` を参照してください。
 
-### スキル（SKILL.md）
+### 公式 MCP Registry
 
-主力コネクタには、準備・進め方・書き込み時の注意をまとめた [Claude のスキル](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)を用意しています。
-`skills/<コネクタ名>/` を `~/.claude/skills/` にコピーすると、Claude Code が依頼に応じて読み込みます。
+主力コネクタは [公式 MCP Registry](https://registry.modelcontextprotocol.io/) に登録しています。Registry に対応したクライアントからは、次の名前で探せます。
+パッケージは GHCR の Docker イメージ（`ghcr.io/mediiiiium/<コネクタ名>-mcp`）です。
 
-| スキル | サービス |
+| Registry 名 | サービス |
 |---|---|
-| [`skills/smarthr/`](./skills/smarthr/SKILL.md) | SmartHR |
-| [`skills/kingtime/`](./skills/kingtime/SKILL.md) | KING OF TIME |
-| [`skills/smaregi/`](./skills/smaregi/SKILL.md) | スマレジ |
-| [`skills/cloudsign/`](./skills/cloudsign/SKILL.md) | クラウドサイン |
+| `io.github.mediiiiium/smarthr` | SmartHR |
+| `io.github.mediiiiium/kingtime` | KING OF TIME |
+| `io.github.mediiiiium/smaregi` | スマレジ |
+| `io.github.mediiiiium/cloudsign` | クラウドサイン |
+
+### Claude Code プラグイン（スキルつき）
+
+主力コネクタは、MCP サーバーと [Claude のスキル](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)（準備・進め方・書き込み時の注意をまとめた SKILL.md）をまとめたプラグインとしても配布しています。
+MCP サーバーは Docker イメージで動くので、Docker と各サービスの環境変数が必要です。
+
+```
+/plugin install mcp-jp-smarthr --marketplace mediiiiium/mcp-jp
+```
+
+| プラグイン | サービス | スキル |
+|---|---|---|
+| [`plugins/smarthr/`](./plugins/smarthr/) | SmartHR | [SKILL.md](./plugins/smarthr/skills/smarthr/SKILL.md) |
+| [`plugins/kingtime/`](./plugins/kingtime/) | KING OF TIME | [SKILL.md](./plugins/kingtime/skills/kingtime/SKILL.md) |
+| [`plugins/smaregi/`](./plugins/smaregi/) | スマレジ | [SKILL.md](./plugins/smaregi/skills/smaregi/SKILL.md) |
+| [`plugins/cloudsign/`](./plugins/cloudsign/) | クラウドサイン | [SKILL.md](./plugins/cloudsign/skills/cloudsign/SKILL.md) |
+
+スキルだけ使う場合は、`plugins/<コネクタ名>/skills/<コネクタ名>/` を `~/.claude/skills/` にコピーします。
 
 ---
 

@@ -1,0 +1,24 @@
+{
+  "name": "mcp-jp-smarthr",
+  "version": "0.1.0",
+  "description": "SmartHR の従業員・部署・雇用形態・役職を調べ、従業員情報を部分更新する（SmartHR 用 MCP サーバーとスキル）。Look up SmartHR employees, departments, employment types and job titles, and update employee records (department transfers, name, email). Read-only except one partial-update tool, which asks for confirmation before writing.",
+  "author": {
+    "name": "mediiiiium",
+    "url": "https://github.com/mediiiiium"
+  },
+  "homepage": "https://github.com/mediiiiium/mcp-jp/tree/main/plugins/smarthr",
+  "repository": "https://github.com/mediiiiium/mcp-jp",
+  "license": "MIT",
+  "keywords": [
+    "smarthr",
+    "SmartHR",
+    "人事・労務",
+    "japan",
+    "mcp"
+  ],
+  "network": {
+    "hosts": [
+      "*.smarthr.jp"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "cloudsign": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "CLOUDSIGN_CLIENT_ID",
+        "ghcr.io/mediiiiium/cloudsign-mcp:0.1.0"
+      ]
+    }
+  }
+}

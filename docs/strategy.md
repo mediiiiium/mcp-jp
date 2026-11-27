@@ -63,3 +63,7 @@ OSS の露出チャネルとして、MCP の掲載ディレクトリに登録し
 
 - **mcp.so** — 登録済み（2026-06）。
 - **glama.ai** — [`awesome-mcp-servers`](https://github.com/punkpeye/awesome-mcp-servers) への掲載を経由して登録済み。
+- **公式 MCP Registry**（registry.modelcontextprotocol.io）— 主力 4 コネクタ（smarthr / kingtime / smaregi / cloudsign）を
+  `io.github.mediiiiium/<コネクタ>` で登録済み（2026-11-26、v0.1.0）。publish は Actions の「Publish to MCP Registry」から手動で実行する。
+  - 載せるのはこの 4 つまで。ほかのコネクタは、`tests/test_live_smoke.py` で実データの疎通を確認できたものから 1 本ずつ追加する
+    （保守モードのため、動作未確認のものを公式 Registry に並べない）。

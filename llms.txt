@@ -13,10 +13,10 @@
 
 主力コネクタには、準備・進め方・書き込み時の注意をまとめた SKILL.md（Claude のスキル）がある。MCP サーバーと組み合わせて使う。
 
-- [クラウドサイン](https://github.com/mediiiiium/mcp-jp/blob/main/skills/cloudsign/SKILL.md): 準備・進め方・書き込み時の注意
-- [KING OF TIME](https://github.com/mediiiiium/mcp-jp/blob/main/skills/kingtime/SKILL.md): 準備・進め方・書き込み時の注意
-- [スマレジ](https://github.com/mediiiiium/mcp-jp/blob/main/skills/smaregi/SKILL.md): 準備・進め方・書き込み時の注意
-- [SmartHR](https://github.com/mediiiiium/mcp-jp/blob/main/skills/smarthr/SKILL.md): 準備・進め方・書き込み時の注意
+- [クラウドサイン](https://github.com/mediiiiium/mcp-jp/blob/main/plugins/cloudsign/skills/cloudsign/SKILL.md): 準備・進め方・書き込み時の注意
+- [KING OF TIME](https://github.com/mediiiiium/mcp-jp/blob/main/plugins/kingtime/skills/kingtime/SKILL.md): 準備・進め方・書き込み時の注意
+- [スマレジ](https://github.com/mediiiiium/mcp-jp/blob/main/plugins/smaregi/skills/smaregi/SKILL.md): 準備・進め方・書き込み時の注意
+- [SmartHR](https://github.com/mediiiiium/mcp-jp/blob/main/plugins/smarthr/skills/smarthr/SKILL.md): 準備・進め方・書き込み時の注意
 
 ## Connectors
 

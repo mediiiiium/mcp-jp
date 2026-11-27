@@ -112,8 +112,8 @@ def collect() -> list[dict]:
                 "path": f"{name}/",
                 "readme": f"{REPO_URL}/blob/main/{name}/README.md",
                 "skill": (
-                    f"{REPO_URL}/blob/main/skills/{name}/SKILL.md"
-                    if (ROOT / "skills" / name / "SKILL.md").exists()
+                    f"{REPO_URL}/blob/main/plugins/{name}/skills/{name}/SKILL.md"
+                    if (ROOT / "plugins" / name / "skills" / name / "SKILL.md").exists()
                     else None
                 ),
                 "registry": (
