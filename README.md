@@ -571,10 +571,10 @@ pip install -e .
 | `io.github.mediiiiium/smaregi` | スマレジ |
 | `io.github.mediiiiium/cloudsign` | クラウドサイン |
 
-### Claude Code プラグイン（スキルつき）
+### Claude Code プラグイン（スキル）
 
-主力コネクタは、MCP サーバーと [Claude のスキル](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)（準備・進め方・書き込み時の注意をまとめた SKILL.md）をまとめたプラグインとしても配布しています。
-MCP サーバーは Docker イメージで動くので、Docker と各サービスの環境変数が必要です。
+主力コネクタには、準備・進め方・書き込み時の注意をまとめた [Claude のスキル](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)（SKILL.md）があり、Claude Code のプラグインとして配布しています。
+プラグインに入っているのはスキルだけです。MCP サーバーは上の手順で別に登録してください。
 
 ```
 /plugin install mcp-jp-smarthr --marketplace mediiiiium/mcp-jp

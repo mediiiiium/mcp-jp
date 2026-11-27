@@ -1,7 +1,7 @@
 {
   "name": "mcp-jp-kingtime",
   "version": "0.1.0",
-  "description": "KING OF TIME の従業員・勤怠・打刻・休暇を調べ、打刻を登録する（KING OF TIME 用 MCP サーバーとスキル）。Look up KING OF TIME employees, daily and monthly attendance, time stamps and leave, and record time stamps. Recording a stamp is not idempotent, so the skill checks existing stamps before writing.",
+  "description": "KING OF TIME の従業員・勤怠・打刻・休暇を調べ、打刻を登録する（KING OF TIME 用のスキル。MCP サーバーは別途インストール）。Look up KING OF TIME employees, daily and monthly attendance, time stamps and leave, and record time stamps. Recording a stamp is not idempotent, so the skill checks existing stamps before writing.",
   "author": {
     "name": "mediiiiium",
     "url": "https://github.com/mediiiiium"
@@ -15,10 +15,5 @@
     "勤怠管理",
     "japan",
     "mcp"
-  ],
-  "network": {
-    "hosts": [
-      "api.kingtime.jp"
-    ]
-  }
+  ]
 }

@@ -1,7 +1,7 @@
 # mcp-jp-smaregi
 
 スマレジ（POS・店舗管理）を Claude から扱うためのプラグインです。スマレジの商品・取引・会員・店舗・在庫を調べることができます。
-中身は、[mcp-jp](https://github.com/mediiiiium/mcp-jp) の `smaregi` MCP サーバーと、その使い方をまとめたスキル（SKILL.md）です。
+中身は、[mcp-jp](https://github.com/mediiiiium/mcp-jp) の `smaregi` MCP サーバーの使い方をまとめたスキル（SKILL.md）です。MCP サーバー本体はプラグインに含まれていないので、下の「必要なもの」に沿って別に入れてください。
 
 Look up Smaregi POS products, transactions, customers, stores and stock levels through the Smaregi Platform API. Useful for sales checks, stock checks and store-level summaries.
 
@@ -15,13 +15,14 @@ Claude Code で次を実行します（2.1.275 以降）。
 
 ## 必要なもの
 
-- Docker（MCP サーバーは `ghcr.io/mediiiiium/smaregi-mcp:0.1.0` のイメージで動きます）
-- 次の環境変数。Claude Code を起動する前に設定してください。値の取り方は [スキル](./skills/smaregi/SKILL.md) の「準備」にあります。
+`smaregi` の MCP サーバーを Claude Code に登録します。トークンなどの値の取り方は [スキル](./skills/smaregi/SKILL.md) の「準備」にあります。
 
-| 環境変数 |
-|---|
-| `SMAREGI_ACCESS_TOKEN` |
-| `SMAREGI_CONTRACT_ID` |
+```bash
+pip install "git+https://github.com/mediiiiium/mcp-jp#subdirectory=smaregi"
+claude mcp add smaregi -e SMAREGI_ACCESS_TOKEN=<値> -e SMAREGI_CONTRACT_ID=<値> -- smaregi-mcp
+```
+
+Docker で動かす場合は、イメージ `ghcr.io/mediiiiium/smaregi-mcp:0.1.0` も使えます。
 
 ## 注意
 
