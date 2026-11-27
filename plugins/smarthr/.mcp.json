@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "smarthr": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "SMARTHR_ACCESS_TOKEN",
+        "-e",
+        "SMARTHR_TENANT_ID",
+        "ghcr.io/mediiiiium/smarthr-mcp:0.1.0"
+      ]
+    }
+  }
+}

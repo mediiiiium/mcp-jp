@@ -1,4 +1,4 @@
-"""skills/<コネクタ>/SKILL.md が、実在するコネクタとツールを指しているか確かめる。
+"""plugins/<コネクタ>/skills/<コネクタ>/SKILL.md が、実在するコネクタとツールを指しているか確かめる。
 
 - フロントマターに name と description があり、name がディレクトリ名と一致する
 - 「## ツール」節に並べたツール名が、そのコネクタの list_tools() と過不足なく一致する
@@ -13,7 +13,7 @@ import pytest
 from _discovery import CONNECTORS, run_async
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = sorted((ROOT / "skills").glob("*/SKILL.md"))
+SKILLS = sorted((ROOT / "plugins").glob("*/skills/*/SKILL.md"))
 PACKAGES = dict(CONNECTORS)
 _TOOLISH = re.compile(r"`((?:list|get|create|update|delete|set|send|record|search|post)_[a-z_]+)`")
 
@@ -24,13 +24,13 @@ def _tool_names(connector: str) -> set[str]:
 
 
 def test_skills_exist():
-    assert SKILLS, "skills/*/SKILL.md が1つもない"
+    assert SKILLS, "plugins/*/skills/*/SKILL.md が1つもない"
 
 
 @pytest.mark.parametrize("path", SKILLS, ids=lambda p: p.parent.name)
 def test_skill(path: Path):
     connector = path.parent.name
-    assert connector in PACKAGES, f"skills/{connector}/ に対応するコネクタがない"
+    assert connector in PACKAGES, f"plugins/{connector}/ に対応するコネクタがない"
     text = path.read_text(encoding="utf-8")
 
     m = re.match(r"^---\n(.*?)\n---\n", text, re.S)

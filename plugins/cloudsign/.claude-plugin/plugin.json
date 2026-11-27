@@ -1,0 +1,24 @@
+{
+  "name": "mcp-jp-cloudsign",
+  "version": "0.1.0",
+  "description": "クラウドサインの書類・契約情報を調べ、契約書を作成・送信する（クラウドサイン 用 MCP サーバーとスキル）。Look up CloudSign documents and contract attributes, and create, address and send contracts for e-signature. Sending cannot be undone, so the skill shows the title and recipients and asks for explicit confirmation first.",
+  "author": {
+    "name": "mediiiiium",
+    "url": "https://github.com/mediiiiium"
+  },
+  "homepage": "https://github.com/mediiiiium/mcp-jp/tree/main/plugins/cloudsign",
+  "repository": "https://github.com/mediiiiium/mcp-jp",
+  "license": "MIT",
+  "keywords": [
+    "cloudsign",
+    "クラウドサイン",
+    "電子契約",
+    "japan",
+    "mcp"
+  ],
+  "network": {
+    "hosts": [
+      "api.cloudsign.jp"
+    ]
+  }
+}
