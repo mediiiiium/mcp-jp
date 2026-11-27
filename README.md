@@ -559,6 +559,18 @@ pip install -e .
 
 各コネクタの詳細なセットアップ手順・必要な環境変数は、各ディレクトリの `README.md` を参照してください。
 
+### 公式 MCP Registry
+
+主力コネクタは [公式 MCP Registry](https://registry.modelcontextprotocol.io/) に登録しています。Registry に対応したクライアントからは、次の名前で探せます。
+パッケージは GHCR の Docker イメージ（`ghcr.io/mediiiiium/<コネクタ名>-mcp`）です。
+
+| Registry 名 | サービス |
+|---|---|
+| `io.github.mediiiiium/smarthr` | SmartHR |
+| `io.github.mediiiiium/kingtime` | KING OF TIME |
+| `io.github.mediiiiium/smaregi` | スマレジ |
+| `io.github.mediiiiium/cloudsign` | クラウドサイン |
+
 ### スキル（SKILL.md）
 
 主力コネクタには、準備・進め方・書き込み時の注意をまとめた [Claude のスキル](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview)を用意しています。
