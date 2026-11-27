@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "mcp-jp",
-  "description": "日本の SaaS 向け MCP サーバー（mcp-jp）の主力コネクタを、スキルつきのプラグインとして配布します。",
+  "description": "日本の SaaS 向け MCP サーバー（mcp-jp）の主力コネクタの使い方を、スキルのプラグインとして配布します。",
   "owner": {
     "name": "mediiiiium",
     "url": "https://github.com/mediiiiium"
@@ -10,25 +10,25 @@
     {
       "name": "mcp-jp-smarthr",
       "source": "./plugins/smarthr",
-      "description": "SmartHR の従業員・部署・雇用形態・役職を調べ、従業員情報を部分更新する（SmartHR 用 MCP サーバーとスキル）。Look up SmartHR employees, departments, employment types and job titles, and update employee records (department transfers, name, email). Read-only except one partial-update tool, which asks for confirmation before writing.",
+      "description": "SmartHR の従業員・部署・雇用形態・役職を調べ、従業員情報を部分更新する（SmartHR 用のスキル。MCP サーバーは別途インストール）。Look up SmartHR employees, departments, employment types and job titles, and update employee records (department transfers, name, email). Read-only except one partial-update tool, which asks for confirmation before writing.",
       "category": "productivity"
     },
     {
       "name": "mcp-jp-kingtime",
       "source": "./plugins/kingtime",
-      "description": "KING OF TIME の従業員・勤怠・打刻・休暇を調べ、打刻を登録する（KING OF TIME 用 MCP サーバーとスキル）。Look up KING OF TIME employees, daily and monthly attendance, time stamps and leave, and record time stamps. Recording a stamp is not idempotent, so the skill checks existing stamps before writing.",
+      "description": "KING OF TIME の従業員・勤怠・打刻・休暇を調べ、打刻を登録する（KING OF TIME 用のスキル。MCP サーバーは別途インストール）。Look up KING OF TIME employees, daily and monthly attendance, time stamps and leave, and record time stamps. Recording a stamp is not idempotent, so the skill checks existing stamps before writing.",
       "category": "productivity"
     },
     {
       "name": "mcp-jp-smaregi",
       "source": "./plugins/smaregi",
-      "description": "スマレジの商品・取引・会員・店舗・在庫を調べる（スマレジ 用 MCP サーバーとスキル）。Look up Smaregi POS products, transactions, customers, stores and stock levels through the Smaregi Platform API. Useful for sales checks, stock checks and store-level summaries.",
+      "description": "スマレジの商品・取引・会員・店舗・在庫を調べる（スマレジ 用のスキル。MCP サーバーは別途インストール）。Look up Smaregi POS products, transactions, customers, stores and stock levels through the Smaregi Platform API. Useful for sales checks, stock checks and store-level summaries.",
       "category": "productivity"
     },
     {
       "name": "mcp-jp-cloudsign",
       "source": "./plugins/cloudsign",
-      "description": "クラウドサインの書類・契約情報を調べ、契約書を作成・送信する（クラウドサイン 用 MCP サーバーとスキル）。Look up CloudSign documents and contract attributes, and create, address and send contracts for e-signature. Sending cannot be undone, so the skill shows the title and recipients and asks for explicit confirmation first.",
+      "description": "クラウドサインの書類・契約情報を調べ、契約書を作成・送信する（クラウドサイン 用のスキル。MCP サーバーは別途インストール）。Look up CloudSign documents and contract attributes, and create, address and send contracts for e-signature. Sending cannot be undone, so the skill shows the title and recipients and asks for explicit confirmation first.",
       "category": "productivity"
     }
   ]
